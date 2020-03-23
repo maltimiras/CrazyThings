@@ -1,0 +1,225 @@
+<html>
+    <style>
+        div {
+            font-size: 5.9vw;
+        }     
+        button{
+            font-size: 5.9vw;
+        }
+        input {
+            font-size: 5.9vw;
+        }
+    </style>
+    <body>
+        <div id="header">
+        </div>
+        <div id="screen">
+        </div>
+        <div id="foot">
+        </div>
+    </body>
+    <script>
+        var subjects = {
+            s1PS:"The first person singular",
+            s2PS:"The second person singular",
+            s3PSm:"The third person singular masculine",
+            s3PSf:"The third person singular feminine",
+            s3PSi:"The third person singular nosex",
+            s1PP:"The first person plural",
+            s2PP:"The second person plural",
+            s3PP:"The third person plural"
+        };
+
+        var tenses = {
+            Present: "Present",
+            PastSimple: "PastSimple",
+            PresentContinous: "PresentContinous",
+            Future: "Future"
+        };
+
+        var forms = {
+            Affirmative: "Affirmative",
+            Negative: "Negative",
+            Interrogative: "Interrogative"
+        };
+
+
+        // Gestio Impresió.
+        function prnt(text,id){ 
+        var output = document.getElementById(id || "screen"); 
+        output.innerHTML = output.innerHTML + "<P>" + text;
+        }
+
+        function clr(id) {
+            
+        var output = document.getElementById(id || "screen");
+        output.innerHTML = "";
+        }
+
+        // Gestio Objectes
+        function rndkeys(obj) {
+        var sskeys=Object.keys(obj);
+        var sslength=sskeys.length;
+        var ssindex=Math.floor(Math.random() * sslength);  
+        return sskeys[ssindex];
+        }
+
+        // Gestio Verbs
+        var verbs = {
+            ToSay: {					
+                Affirmative: {				
+                    Present: {			
+                        s1PS: "	I say	",
+                        s2PS: "	You say	",
+                        s3PSm: "	He says	",
+                        s3PSf: "	She says	",
+                        s3PSi: "	It says	",
+                        s1PP: "	We say	",
+                        s2PP: "	You say	",
+                        s3PP: "	They say	"
+                    },			
+                    PastSimple: {			
+                        s1PS: "	I said	",
+                        s2PS: "	You said	",
+                        s3PSm: "	He said	",
+                        s3PSf: "	She said	",
+                        s3PSi: "	It said	",
+                        s1PP: "	We said	",
+                        s2PP: "	You said	",
+                        s3PP: "	They said	"
+                    },			
+                    PresentContinous: {			
+                        s1PS: "	I am saying	",
+                        s2PS: "	You are saying	",
+                        s3PSm: "	He is saying	",
+                        s3PSf: "	She is saying	",
+                        s3PSi: "	It is saying	",
+                        s1PP: "	We are saying	",
+                        s2PP: "	You are saying	",
+                        s3PP: "	They are saying	"
+                    },			
+                    Future: {			
+                        s1PS: "	I will say	",
+                        s2PS: "	You will say	",
+                        s3PSm: "	He will say	",
+                        s3PSf: "	She will say	",
+                        s3PSi: "	It will say	",
+                        s1PP: "	We will say	",
+                        s2PP: "	You will say	",
+                        s3PP: "	They will say	"
+                    }			
+                }
+            },
+            ToWalk: {					
+                Affirmative: {				
+                    Present: {			
+                        s1PS: "	I walk	",
+                        s2PS: "	You walk	",
+                        s3PSm: "	He walks	",
+                        s3PSf: "	She walks	",
+                        s3PSi: "	It walks	",
+                        s1PP: "	We walk	",
+                        s2PP: "	You walk	",
+                        s3PP: "	They walk	"
+                    },			
+                    PastSimple: {			
+                        s1PS: "	I walked	",
+                        s2PS: "	You walked	",
+                        s3PSm: "	He walked	",
+                        s3PSf: "	She walked	",
+                        s3PSi: "	It walked	",
+                        s1PP: "	We walked	",
+                        s2PP: "	You walked	",
+                        s3PP: "	They walked	"
+                    },			
+                    PresentContinous: {			
+                        s1PS: "	I am walking	",
+                        s2PS: "	You are walking	",
+                        s3PSm: "	He is walking	",
+                        s3PSf: "	She is walking	",
+                        s3PSi: "	It is walking	",
+                        s1PP: "	We are walking	",
+                        s2PP: "	You are walking	",
+                        s3PP: "	They are walking	"
+                    },			
+                    Future: {			
+                        s1PS: "	I will walk	",
+                        s2PS: "	You will walk	",
+                        s3PSm: "	He will walk	",
+                        s3PSf: "	She will walk	",
+                        s3PSi: "	It will walk	",
+                        s1PP: "	We will walk	",
+                        s2PP: "	You will walk	",
+                        s3PP: "	They will walk	"
+                    }			
+                }				
+            }					
+        }
+
+        var score =0;
+        function prntScore() {
+        clr("header");
+        prnt("Your Score is "+score,"header");    
+        }
+
+        function prntFooter() {
+        clr("foot");
+        prnt("<button onclick='clr();clr(&#34;foot&#34;)'>Finish</button>","foot");      
+        }
+
+        function buildQuestion() {
+        var verb=rndkeys(verbs);
+        var form=rndkeys(verbs[verb]);
+        var tense=rndkeys(verbs[verb][form]);
+        var subject=rndkeys(verbs[verb][form][tense]);
+        //prnt(verbs[verb][form][tense][subject]);
+        return {
+            Question: "<B>"+subjects[subject]+"</B> of the verb <B>"+ verb + "</B> in  <B>" +form+ "</B> for the <B>"+ tense +"</B>",
+            Answer: verbs[verb][form][tense][subject]
+        };
+        }
+
+        function buildForm(question,answer) {
+        prnt(question);
+        prnt("<input type='text' id='tanswer' onkeypress='checkEnter()' autofocus><button id='banswer' onclick='checkAnswer(&#34;"+answer+"&#34;)'>Check</button>");
+        }
+
+        function checkEnter() {
+            if (event.keyCode === 13) {
+                document.getElementById("banswer").click();
+            }
+        }
+
+        function checkAnswer(answer) {
+            entered = document.getElementById("tanswer").value;
+            document.getElementById("tanswer").style.display = 'none';
+            document.getElementById("banswer").style.display = 'none';
+            
+            //prnt(entered.toLowerCase().trim());
+            //prnt(entered.toLowerCase().trim()==answer.toLowerCase().trim());
+            if (entered.toLowerCase().trim()==answer.toLowerCase().trim()) {
+                prnt('<font color="green">'+entered.toLowerCase().trim()+'</font>');
+                prnt("Well done");
+                score+=1;
+                prntScore();
+            }else{
+                prnt('<font color="red">'+entered.toLowerCase().trim()+'</font>');
+                prnt("Incorrect");
+            }
+            //setTimeout(clr, 3000);
+            setTimeout(clr,2000);
+            setTimeout(main,3000);
+        }
+
+
+        // Main Bucle
+        function main() {
+            prntScore();
+            var question=buildQuestion();
+            buildForm(question.Question,question.Answer);
+            prntFooter();
+        }
+
+        main();
+    </script>
+</html>
