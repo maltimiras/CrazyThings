@@ -1023,24 +1023,28 @@
         }
 
         function checkAnswer(answer) {
-            entered = document.getElementById("tanswer").value;
-            document.getElementById("tanswer").style.display = 'none';
-            document.getElementById("banswer").style.display = 'none';
-            
-            //prnt(entered.toLowerCase().trim());
-            //prnt(entered.toLowerCase().trim()==answer.toLowerCase().trim());
-            if (entered.toLowerCase().trim()==answer.toLowerCase().trim()) {
-                prnt('<font color="green">'+entered.toLowerCase().trim()+'</font>');
-                prnt("Well done");
-                score+=1;
-                prntScore();
-            }else{
-                prnt('<font color="red">'+entered.toLowerCase().trim()+'</font>');
-                prnt("Incorrect");
-            }
-            //setTimeout(clr, 3000);
-            setTimeout(clr,2000);
-            setTimeout(main,3000);
+            try {
+                entered = document.getElementById("tanswer").value;
+                document.getElementById("tanswer").style.display = 'none';
+                document.getElementById("banswer").style.display = 'none';
+
+                //prnt(entered.toLowerCase().trim());
+                //prnt(entered.toLowerCase().trim()==answer.toLowerCase().trim());
+                if (entered.toLowerCase().trim()==answer.toLowerCase().trim()) {
+                    prnt('<font color="green">'+entered.toLowerCase().trim()+'</font>');
+                    prnt("Well done");
+                    score+=1;
+                    prntScore();
+                }else{
+                    prnt('<font color="red">'+entered.toLowerCase().trim()+'</font>');
+                    prnt("Incorrect");
+                }
+                //setTimeout(clr, 3000);
+                setTimeout(clr,2000);
+                setTimeout(main,3000);
+            } catch(err) {
+                prnt(err.message,"foot");
+            }    
         }
 
 
