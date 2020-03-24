@@ -1013,13 +1013,17 @@
 
         function buildForm(question,answer) {
         prnt(question);
-        prnt("<input type='text' id='tanswer'><button id='banswer' onclick='checkAnswer(&#34;"+answer+"&#34;)' autofocus>Check</button>");
+        prnt("<input type='text' id='tanswer' onkeypress='checkEnter()' autofocus><button id='banswer' onclick='checkAnswer(&#34;"+answer+"&#34;)'>Check</button>");
         }
 
         function checkEnter() {
-            if (event.keyCode === 13) {
-                document.getElementById("banswer").click();
-            }
+            try {
+              if (event.keyCode === 13) {
+                  document.getElementById("banswer").click();
+              }
+            }catch(err) {
+                prnt(err.message,"foot");
+            }  
         }
 
         function checkAnswer(answer) {
