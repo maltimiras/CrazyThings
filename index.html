@@ -987,16 +987,17 @@
         <embed src="success.wav" autostart="false" width="0" height="0" id="sound1"
         enablejavascript="true">
         */
-        
+
         var score =0;
+        var total =0;
         function prntScore() {
-        clr("header");
-        prnt("Your Score is "+score,"header");    
+            clr("header");
+            prnt("Your Score is "+score+" of "+total,"header");    
         }
 
         function prntFooter() {
-        clr("foot");
-        prnt("<button onclick='clr();clr(&#34;foot&#34;)'>Finish</button>","foot");      
+            clr("foot");
+            prnt("<button onclick='clr();clr(&#34;foot&#34;)'>Finish</button>","foot");      
         }
 
         function buildQuestion() {
@@ -1018,37 +1019,33 @@
 
         function checkEnter() {
             try {
-              if (event.keyCode === 13) {
-                  document.getElementById("banswer").click();
-              }
-            }catch(err) {
-                prnt(err.message,"foot");
-            }  
+                if (event.keyCode === 13) {
+                    document.getElementById("banswer").click();
+                }
+            } 
         }
 
         function checkAnswer(answer) {
-            try {
-                entered = document.getElementById("tanswer").value;
-                document.getElementById("tanswer").style.display = 'none';
-                document.getElementById("banswer").style.display = 'none';
-
-                //prnt(entered.toLowerCase().trim());
-                //prnt(entered.toLowerCase().trim()==answer.toLowerCase().trim());
-                if (entered.toLowerCase().trim()==answer.toLowerCase().trim()) {
-                    prnt('<font color="green">'+entered.toLowerCase().trim()+'</font>');
-                    prnt("Well done");
-                    score+=1;
-                    prntScore();
-                }else{
-                    prnt('<font color="red">'+entered.toLowerCase().trim()+'</font>');
-                    prnt("Incorrect");
-                }
-                //setTimeout(clr, 3000);
-                setTimeout(clr,2000);
-                setTimeout(main,3000);
-            } catch(err) {
-                prnt(err.message,"foot");
-            }    
+            var secs = 3000;
+            entered = document.getElementById("tanswer").value;
+            document.getElementById("tanswer").style.display = 'none';
+            document.getElementById("banswer").style.display = 'none';
+            
+            //prnt(entered.toLowerCase().trim());
+            //prnt(entered.toLowerCase().trim()==answer.toLowerCase().trim());
+            if (entered.toLowerCase().trim()==answer.toLowerCase().trim()) {
+                prnt('<font color="green">'+entered.toLowerCase().trim()+'</font>');
+                prnt("Well done");
+                score+=1;
+            }else{
+                secs = 6000;
+                prnt('<font color="red"><B>Incorrect: </B>'+entered.toLowerCase().trim()+'</font>');
+                prnt('<font color="green"><B>Correct answer was: </B>'+answer.toLowerCase().trim()+'</font>');
+            }
+            total+=1;
+            prntScore();
+            setTimeout(clr,4500);
+            setTimeout(main,5000); 
         }
 
 
