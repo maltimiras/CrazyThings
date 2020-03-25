@@ -37,8 +37,6 @@
             Cai:"Cai.png"
         };
 
-        var currentuser = "";
-
         var subjects = {
             s1PS:"The first person singular",
             s2PS:"The second person singular",
@@ -62,26 +60,6 @@
             Negative: "Negative",
             Interrogative: "Interrogative"
         };
-
-
-        // Gestio Impresió.
-        function prnt(text,id){ 
-            var output = document.getElementById(id || "screen"); 
-            output.innerHTML = output.innerHTML + "<P>" + text;
-        }
-
-        function clr(id) {
-            var output = document.getElementById(id || "screen");
-            output.innerHTML = "";
-        }
-
-        // Gestio Objectes
-        function rndkeys(obj) {
-            var sskeys=Object.keys(obj);
-            var sslength=sskeys.length;
-            var ssindex=Math.floor(Math.random() * sslength);  
-        return sskeys[ssindex];
-        }
 
         // Gestio Verbs
         var verbs = {
@@ -985,6 +963,28 @@
             }
         }
 
+        var currentuser = "";
+        var score =0;
+        var total =0;
+
+        // Gestio Impresió.
+        function prnt(text,id){ 
+            var output = document.getElementById(id || "screen"); 
+            output.innerHTML = output.innerHTML + "<P>" + text;
+        }
+
+        function clr(id) {
+            var output = document.getElementById(id || "screen");
+            output.innerHTML = "";
+        }
+
+        // Gestio Objectes
+        function rndkeys(obj) {
+            var sskeys=Object.keys(obj);
+            var sslength=sskeys.length;
+            var ssindex=Math.floor(Math.random() * sslength);  
+        return sskeys[ssindex];
+        }
 
         /*
         function PlaySound(soundObj) {
@@ -1023,8 +1023,7 @@
         //clr("foot");
 
         // STATE Questions and Answers.
-        var score =0;
-        var total =0;
+
         function prntScore() {
             clr("header");
             prnt("Your Score is "+score+" of "+total,"header");    
@@ -1040,6 +1039,9 @@
         var form=rndkeys(verbs[verb]);
         var tense=rndkeys(verbs[verb][form]);
         var subject=rndkeys(verbs[verb][form][tense]);
+        
+        question = verb+","+form+","+tense+","+subject;
+
         //prnt(verbs[verb][form][tense][subject]);
         return {
             Question: "<B>"+subjects[subject]+"</B> of the verb <B>To "+ verb.split("To")[1] + "</B> in  <B>" +form+ "</B> for the <B>"+ tense +"</B>",
