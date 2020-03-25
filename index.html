@@ -31,6 +31,14 @@
         </div>
     </body>
     <script>
+        var users = {
+            Guillem:"Guillem.png",
+            Sergi:"Sergi.png",
+            Cai:"Cai.png"
+        };
+
+        var currentuser = "";
+
         var subjects = {
             s1PS:"The first person singular",
             s2PS:"The second person singular",
@@ -58,21 +66,20 @@
 
         // Gestio Impresió.
         function prnt(text,id){ 
-        var output = document.getElementById(id || "screen"); 
-        output.innerHTML = output.innerHTML + "<P>" + text;
+            var output = document.getElementById(id || "screen"); 
+            output.innerHTML = output.innerHTML + "<P>" + text;
         }
 
         function clr(id) {
-            
-        var output = document.getElementById(id || "screen");
-        output.innerHTML = "";
+            var output = document.getElementById(id || "screen");
+            output.innerHTML = "";
         }
 
         // Gestio Objectes
         function rndkeys(obj) {
-        var sskeys=Object.keys(obj);
-        var sslength=sskeys.length;
-        var ssindex=Math.floor(Math.random() * sslength);  
+            var sskeys=Object.keys(obj);
+            var sslength=sskeys.length;
+            var ssindex=Math.floor(Math.random() * sslength);  
         return sskeys[ssindex];
         }
 
@@ -988,6 +995,34 @@
         enablejavascript="true">
         */
 
+        // STATE Cover
+        function Cover(){
+            prnt("<img src='cover.png'style='margin-left:auto;margin-right:auto;width:50vw;display:block;'>");
+            prnt("<center>English Time</center>");
+            setTimeout(UserSelection,4500);
+        }
+        // STATE User Selection
+        function UserSelection() {
+            clr();
+            var lusers=Object.keys(users);
+            lusers.forEach(prntUser);
+        }
+
+        function prntUser(value) {
+            prnt("<img src='"+users[value]+"' onclick='clickImg(&#34;"+value+"&#34;)' style='margin-left:auto;margin-right:auto;width:20vw;display:block;'>");
+        }
+
+        function clickImg(value){
+            currentuser=value;
+            setTimeout(QuestionAnswers,500);
+            alert(currentuser);
+        }
+        // STATE Game Selectors
+        //            clr();
+        //clr("header");
+        //clr("foot");
+
+        // STATE Questions and Answers.
         var score =0;
         var total =0;
         function prntScore() {
@@ -997,7 +1032,7 @@
 
         function prntFooter() {
             clr("foot");
-            prnt("<button onclick='clr();clr(&#34;foot&#34;)'>Finish</button>","foot");      
+            prnt("<button onclick='clr();clr(&#34;foot&#34;setTimeout(window.close,2000);)'>Finish</button>","foot");      
         }
 
         function buildQuestion() {
@@ -1014,15 +1049,17 @@
 
         function buildForm(question,answer) {
         prnt(question);
-        prnt("<input type='text' id='tanswer' onkeypress='checkEnter()' autofocus><button id='banswer' onclick='checkAnswer(&#34;"+answer+"&#34;)'>Check</button>");
+        prnt("<input type='text' id='tanswer' autofocus><button id='banswer' onclick='checkAnswer(&#34;"+answer+"&#34;)'>Check</button>");
         }
+
+        //onkeypress='checkEnter()'
 
         function checkEnter() {
             try {
                 if (event.keyCode === 13) {
                     document.getElementById("banswer").click();
                 }
-            } catch (err) {}
+            } catch {}
         }
 
         function checkAnswer(answer) {
@@ -1044,19 +1081,22 @@
             }
             total+=1;
             prntScore();
-            setTimeout(clr,4500);
-            setTimeout(main,5000); 
+            setTimeout(QuestionAnswers,5000); 
         }
 
 
         // Main Bucle
-        function main() {
+        function QuestionAnswers() {
             prntScore();
+            clr();
             var question=buildQuestion();
             buildForm(question.Question,question.Answer);
             prntFooter();
         }
 
-        main();
+        // STATE Results
+
+        //main();
+        Cover();
     </script>
 </html>
