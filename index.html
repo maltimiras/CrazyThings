@@ -1,4 +1,5 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta http-equiv="cache-control" content="no-cache" />
 <meta charset="UTF-8"/>
 <html>
     <head>
@@ -32,6 +33,22 @@
             display: inline; 
         }
 
+        .subject {
+            color:blue; 
+            display:inline;   
+        }
+        .verb {
+            color:blue; 
+            display:inline;   
+        }
+        .auxiliar {
+            color:red; 
+            display:inline;   
+        }
+        .form {
+            color:yellowgreen; 
+            display:inline;   
+        }
     </style>
     <body>
         <div id="header">
@@ -69,10 +86,10 @@
         };
 
         var help = {
-            Present: "<b>Present</b><br><br>To Be/To Have -> Irregulars<br>3rd  Singular Person: verb + s/es<br><br>Affirmative: subject + verb + ...<br>Interrogative: 	DO/DOES + subject + verb + ...<br>Negative: Subject + DO/DOES + not + verb +				(DON’T/DOESN’T)<br>",
-            PastSimple: "<b>Preterite / Past Simple</b><br>Regular: verb(infinitive)  + ed<br><br>Affirmative: subject + verb(preterite) + ...<br>Interrogative: 	DID + subject + verb(infinitive) + ...<br>Negative: Subject + DID + not + verb(infinitive) +				(DIDN´T)<br>",
-            PresentContinous: "<b>Present Continuous</b><br>Affirmative: subject + TO BE CONJUGATED + verb + ING + ...<br>Interrogative: 	TO BE CONJUGATED + subject + verb + ING + ...<br>Negative: Subject + TO BE CONJUGATED + not + verb + ING +		(AREN’T/ISN’T)<br>",
-            Future: "<b>Future</b>Affirmative: subject + WILL + verb(infinitive) + ...<br>Interrogative: 	WILL + subject + verb(infinitive) + ...<br>Negative: Subject + WILL + not + verb(infinitive) +				(WON’T)<br>"
+            Present: "<h1>Present</h1><br>To Be/To Have -> Irregulars<br>3rd  Singular Person: <font class='verb'>verb</font> + s/es<br><br><b>Affirmative</b>: <font class='subject'>subject</font> + <font class='verb'>verb</font> + ...<br><b>Interrogative</b>: 	<font class='auxiliar'>DO/DOES</font> + <font class='subject'>subject</font> + <font class='verb'>verb</font> + ...<br><b>Negative</b>: <font class='subject'>subject</font> + <font class='auxiliar'><font class='auxiliar'>DO/DOES</font></font> + <font class='auxiliar'>NOT</font> + <font class='verb'>verb</font> +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or <font class='auxiliar'>(DON’T/DOESN’T)</font><br>",
+            PastSimple: "<h1>Preterite / Past Simple</h1><br>Regular: <font class='verb'>verb</font>(<font class='form'>infinitive</font>)  + ed<br><br><b>Affirmative</b>: <font class='subject'>subject</font> + <font class='verb'>verb</font>(<font class='form'>preterite</font>) + ...<br><b>Interrogative</b>: 	<font class='auxiliar'>DID</font> + <font class='subject'>subject</font> + <font class='verb'>verb</font>(<font class='form'>infinitive</font>) + ...<br><b>Negative</b>: <font class='subject'>subject</font> + <font class='auxiliar'>DID</font> + <font class='auxiliar'>NOT</font> + <font class='verb'>verb</font>(<font class='form'>infinitive</font>) +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; or (<font class='auxiliar'>DIDN´T</font>)<br>",
+            PresentContinous: "<h1>Present Continuous</h1><br><b>Affirmative</b>: <font class='subject'>subject</font> + <font class='auxiliar'>TO BE CONJUGATED</font> + <font class='verb'>verb</font> + <font class='auxiliar'>ING</font> + ...<br><b>Interrogative</b>: 	<font class='auxiliar'>TO BE CONJUGATED</font> + <font class='subject'>subject</font> + <font class='verb'>verb</font> + <font class='auxiliar'>ING</font> + ...<br><b>Negative</b>: <font class='subject'>subject</font> + <font class='auxiliar'>TO BE CONJUGATED</font> + <font class='auxiliar'>NOT</font> + <font class='verb'>verb</font> + <font class='auxiliar'>ING</font> +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or (<font class='auxiliar'>AREN’T/ISN’T</font>)<br>",
+            Future: "<h1>Future</h1></br><b>Affirmative</b>: <font class='subject'>subject</font> + <font class='auxiliar'>WILL</font> + <font class='verb'>verb</font>(<font class='form'>infinitive</font>) + ...<br><b>Interrogative</b>: 	<font class='auxiliar'>WILL</font> + <font class='subject'>subject</font> + <font class='verb'>verb</font>(<font class='form'>infinitive</font>) + ...<br><b>Negative</b>: <font class='subject'>subject</font> + <font class='auxiliar'>WILL</font> + <font class='auxiliar'>NOT</font> + <font class='verb'>verb</font>(<font class='form'>infinitive</font>) +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;or (WON’T)<br>"
         }
 
         var forms = {
@@ -189,7 +206,16 @@
         }
         
         function prntCheckTenses(value){
-            prnt(strProper(value) + "<input type='checkbox' name='Tenses' id='"+value+"' checked>");
+            prnt(strProper(value) +"<a id='"+value+"' href='javascript: function() {return false;}' onclick='helpTenses(this)'>?</a>"+ " <input type='checkbox' name='Tenses' id='"+value+"' checked>");
+        }
+
+        function helpTenses(e) {
+            //alert("tenses "+e.id);
+            clr("header");
+            prnt("<div class='GameSelector'>"+help[e.id]+"</div>","header");
+            
+            //setTimeout(clr("header"),2000);
+            //e.preventDefault();
         }
 
         function prntCheckForms(value){
@@ -307,27 +333,32 @@
             } catch {}
         }
 
+        function strUniform(str) {
+            return str.replace("i'm","i am").replace("are not","aren't").replace("is not","isn't").replace("do not","don't").replace("did not","didn't").replace("does not","doesn't").replace("will not","won't").replace("have not","haven't").replace("has not","hasn't").replace("had not","hadn't");
+        }
+
         function checkAnswer() {
             try {
                 //#degug alert("checkAnswer");
                 var secs = 3000;
-                answer = strClean(answer);
-                entered = strClean(document.getElementById("tanswer").value);
+                answer = strUniform(strClean(answer.toLowerCase().trim()));
+                entered = strUniform(strClean(document.getElementById("tanswer").value));
+                entered = entered.toLowerCase().trim();
                 document.getElementById("tanswer").style.display = 'none';
                 document.getElementById("banswer").style.display = 'none';
-                if (entered.toLowerCase().trim()==answer.toLowerCase().trim()) {
-                    formCreate("result"+total,["user","verb","form","tense","subject","result"]);
+                if (entered==answer) {
+                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered"]);
                     //#degug alert("1formCreate");
-                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true});
+                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true,answer:answer,answered:entered});
                     formSubmit("result"+total);
                     //results.push({user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true});
                     prnt('<font color="green">'+entered.toLowerCase().trim()+'</font><br>');
                     prnt("Well done");
                     score+=1;
                 }else{
-                    formCreate("result"+total,["user","verb","form","tense","subject","result"]);
+                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered"]);
                     //#degug alert("2formCreate"+currentuser);
-                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false});
+                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false,answer:answer,answered:entered});
                     formSubmit("result"+total);
                     //results.push({user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false});
                     secs = 6000;
