@@ -1,4 +1,134 @@
 var verbs = {
+
+    ToBe: {					
+        Affirmative: {				
+            Present: {			
+                s1PS: "I am",
+                s2PS: "You are",
+                s3PSm: "He is",
+                s3PSf: "She is",
+                s3PSi: "It is",
+                s1PP: "We are",
+                s2PP: "You are",
+                s3PP: "They are"
+            },			
+            PastSimple: {			
+                s1PS: "I was",
+                s2PS: "You were",
+                s3PSm: "He was",
+                s3PSf: "She was",
+                s3PSi: "It was",
+                s1PP: "We were",
+                s2PP: "You were",
+                s3PP: "They were"
+            },			
+            PresentContinous: {			
+                s1PS: "I am being",
+                s2PS: "You are being",
+                s3PSm: "He is being",
+                s3PSf: "She is being",
+                s3PSi: "It is being",
+                s1PP: "We are being",
+                s2PP: "You are being",
+                s3PP: "They are being"
+            },			
+            Future: {			
+                s1PS: "I Will be",
+                s2PS: "You Will be",
+                s3PSm: "He Will be",
+                s3PSf: "She Will be",
+                s3PSi: "It Will be",
+                s1PP: "We Will be",
+                s2PP: "You Will be",
+                s3PP: "They Will be"
+            }			
+        },				
+        Negative: {				
+            Present: {			
+                s1PS: "I have not",
+                s2PS: "You have not",
+                s3PSm: "He has not",
+                s3PSf: "She has not",
+                s3PSi: "It has not",
+                s1PP: "We have not",
+                s2PP: "You have not",
+                s3PP: "They have not"
+            },			
+            PastSimple: {			
+                s1PS: "I was not",
+                s2PS: "You were not",
+                s3PSm: "He was not",
+                s3PSf: "She was not",
+                s3PSi: "It was not",
+                s1PP: "We were not",
+                s2PP: "You were not",
+                s3PP: "They were not"
+            },			
+            PresentContinous: {			
+                s1PS: "I am not being",
+                s2PS: "You are not being",
+                s3PSm: "He is not being",
+                s3PSf: "She is not being",
+                s3PSi: "It is not being",
+                s1PP: "We are not being",
+                s2PP: "You are not being",
+                s3PP: "They are not being"
+            },			
+            Future: {			
+                s1PS: "I will not be",
+                s2PS: "You will not be",
+                s3PSm: "He will not be",
+                s3PSf: "She will not be",
+                s3PSi: "It will not be",
+                s1PP: "We will not be",
+                s2PP: "You will not be",
+                s3PP: "They will not be"
+            }			
+        },				
+        Interrogative: {				
+            Present: {			
+                s1PS: "Am I?",
+                s2PS: "Are you?",
+                s3PSm: "Is he?",
+                s3PSf: "Is she?",
+                s3PSi: "Is it?",
+                s1PP: "Are we?",
+                s2PP: "Are you?",
+                s3PP: "Are they?"
+            },			
+            PastSimple: {			
+                s1PS: "Was I?",
+                s2PS: "Were you?",
+                s3PSm: "Was he?",
+                s3PSf: "Was she?",
+                s3PSi: "Was it?",
+                s1PP: "Were we?",
+                s2PP: "Were you?",
+                s3PP: "Were they?"
+            },			
+            PresentContinous: {			
+                s1PS: "Am I being?",
+                s2PS: "Are you being?",
+                s3PSm: "Is he being?",
+                s3PSf: "Is she being?",
+                s3PSi: "Is it being?",
+                s1PP: "Are he being?",
+                s2PP: "Are he being?",
+                s3PP: "Are he being?"
+            },			
+            Future: {			
+                s1PS: "Will I be?",
+                s2PS: "Will you be?",
+                s3PSm: "Will he be?",
+                s3PSf: "Will she be?",
+                s3PSi: "Will it be?",
+                s1PP: "Will we be?",
+                s2PP: "Will you be?",
+                s3PP: "Will they be?"
+            }			
+        }				
+    },
+
     ToHave: {					
         Affirmative: {				
             Present: {			
@@ -54,13 +184,13 @@ var verbs = {
                 s3PP: "They have not"
             },			
             PastSimple: {			
-                s1PS: "I had not ",
-                s2PS: "You had not ",
-                s3PSm: "He had not ",
-                s3PSf: "She had not ",
-                s3PSi: "It had not ",
-                s1PP: "We had not ",
-                s2PP: "You had not ",
+                s1PS: "I had not",
+                s2PS: "You had not",
+                s3PSm: "He had not",
+                s3PSf: "She had not",
+                s3PSi: "It had not",
+                s1PP: "We had not",
+                s2PP: "You had not",
                 s3PP: "They had not "
             },			
             PresentContinous: {			
@@ -86,44 +216,44 @@ var verbs = {
         },				
         Interrogative: {				
             Present: {			
-                s1PS: "0",
-                s2PS: "0",
-                s3PSm: "0",
-                s3PSf: "0",
-                s3PSi: "0",
-                s1PP: "0",
-                s2PP: "0",
-                s3PP: "0"
+                s1PS: "Do I have?",
+                s2PS: "Do you have?",
+                s3PSm: "Does he have?",
+                s3PSf: "Does she have?",
+                s3PSi: "Does it have?",
+                s1PP: "Do we have?",
+                s2PP: "Do you have?",
+                s3PP: "Do they have?"
             },			
             PastSimple: {			
-                s1PS: "0",
-                s2PS: "0",
-                s3PSm: "0",
-                s3PSf: "0",
-                s3PSi: "0",
-                s1PP: "0",
-                s2PP: "0",
-                s3PP: "0"
+                s1PS: "Did I have?",
+                s2PS: "Did you have?",
+                s3PSm: "Did he have?",
+                s3PSf: "Did she have?",
+                s3PSi: "Did it have?",
+                s1PP: "Did we have?",
+                s2PP: "Did you have?",
+                s3PP: "Did they have?"
             },			
             PresentContinous: {			
-                s1PS: "0",
-                s2PS: "0",
-                s3PSm: "0",
-                s3PSf: "0",
-                s3PSi: "0",
-                s1PP: "0",
-                s2PP: "0",
-                s3PP: "0"
+                s1PS: "Am I having?",
+                s2PS: "Are you having?",
+                s3PSm: "Is he having?",
+                s3PSf: "Is she having?",
+                s3PSi: "Is it having?",
+                s1PP: "Are he having?",
+                s2PP: "Are he having?",
+                s3PP: "Are he having?"
             },			
             Future: {			
-                s1PS: "0",
-                s2PS: "0",
-                s3PSm: "0",
-                s3PSf: "0",
-                s3PSi: "0",
-                s1PP: "0",
-                s2PP: "0",
-                s3PP: "0"
+                s1PS: "Will I have?",
+                s2PS: "Will you have?",
+                s3PSm: "Will he have?",
+                s3PSf: "Will she have?",
+                s3PSi: "Will it have?",
+                s1PP: "Will we have?",
+                s2PP: "Will you have?",
+                s3PP: "Will they have?"
             }			
         }				
     },
@@ -215,44 +345,44 @@ var verbs = {
         },			
         Interrogative: {				
             Present: {			
-                s1PS: "Do I say",
-                s2PS: "Do You say",
-                s3PSm: "Does He say",
-                s3PSf: "Does She say",
-                s3PSi: "Does It say",
-                s1PP: "Does We say",
-                s2PP: "Do You say",
-                s3PP: "Do They say"
+                s1PS: "Do I say?",
+                s2PS: "Do You say?",
+                s3PSm: "Does He say?",
+                s3PSf: "Does She say?",
+                s3PSi: "Does It say?",
+                s1PP: "Does We say?",
+                s2PP: "Do You say?",
+                s3PP: "Do They say?"
             },			
             PastSimple: {			
-                s1PS: "Did I say",
-                s2PS: "Did You say",
-                s3PSm: "Did He say",
-                s3PSf: "Did She say",
-                s3PSi: "Did It say",
-                s1PP: "Did We say",
-                s2PP: "Did You say",
-                s3PP: "Did They say"
+                s1PS: "Did I say?",
+                s2PS: "Did You say?",
+                s3PSm: "Did He say?",
+                s3PSf: "Did She say?",
+                s3PSi: "Did It say?",
+                s1PP: "Did We say?",
+                s2PP: "Did You say?",
+                s3PP: "Did They say?"
             },			
             PresentContinous: {			
-                s1PS: "am I  saying",
-                s2PS: "are You  saying",
-                s3PSm: "is He saying",
-                s3PSf: "is She saying",
-                s3PSi: "is It saying",
-                s1PP: "are We  saying",
-                s2PP: "are You  saying",
-                s3PP: "are They  saying"
+                s1PS: "am I saying?",
+                s2PS: "are You saying?",
+                s3PSm: "is He saying?",
+                s3PSf: "is She saying?",
+                s3PSi: "is It saying?",
+                s1PP: "are We saying?",
+                s2PP: "are You saying?",
+                s3PP: "are They saying?"
             },			
             Future: {			
-                s1PS: "Will I say",
-                s2PS: "Will You say",
-                s3PSm: "Will He say",
-                s3PSf: "Will She say",
-                s3PSi: "Will It says",
-                s1PP: "Will We say",
-                s2PP: "Will You say",
-                s3PP: "Will They say"
+                s1PS: "Will I say?",
+                s2PS: "Will You say?",
+                s3PSm: "Will He say?",
+                s3PSf: "Will She say?",
+                s3PSi: "Will It say?",
+                s1PP: "Will We say?",
+                s2PP: "Will You say?",
+                s3PP: "Will They say?"
             }			
         }				
     },			
@@ -343,44 +473,44 @@ var verbs = {
         },			
         Interrogative: {				
             Present: {			
-                s1PS: "Do I arrive",
-                s2PS: "Do You arrive",
-                s3PSm: "Does He arrive",
-                s3PSf: "Does She arrive",
-                s3PSi: "Does It arrive",
-                s1PP: "Does We arrive",
-                s2PP: "Do You arrive",
-                s3PP: "Do They arrive"
+                s1PS: "Do I arrive?",
+                s2PS: "Do You arrive?",
+                s3PSm: "Does He arrive?",
+                s3PSf: "Does She arrive?",
+                s3PSi: "Does It arrive?",
+                s1PP: "Does We arrive?",
+                s2PP: "Do You arrive?",
+                s3PP: "Do They arrive?"
             },			
             PastSimple: {			
-                s1PS: "Did I arrive",
-                s2PS: "Did You arrive",
-                s3PSm: "Did He arrive",
-                s3PSf: "Did She arrive",
-                s3PSi: "Did It arrive",
-                s1PP: "Did We arrive",
-                s2PP: "Did You arrive",
-                s3PP: "Did They arrive"
+                s1PS: "Did I arrive?",
+                s2PS: "Did You arrive?",
+                s3PSm: "Did He arrive?",
+                s3PSf: "Did She arrive?",
+                s3PSi: "Did It arrive?",
+                s1PP: "Did We arrive?",
+                s2PP: "Did You arrive?",
+                s3PP: "Did They arrive?"
             },			
             PresentContinous: {			
-                s1PS: "am I  arriving",
-                s2PS: "are You  arriving",
-                s3PSm: "is He arriving",
-                s3PSf: "is She arriving",
-                s3PSi: "is It arriving",
-                s1PP: "are We  arriving",
-                s2PP: "are You  arriving",
-                s3PP: "are They  arriving"
+                s1PS: "am I arriving?",
+                s2PS: "are You arriving?",
+                s3PSm: "is He arriving?",
+                s3PSf: "is She arriving?",
+                s3PSi: "is It arriving?",
+                s1PP: "are We arriving?",
+                s2PP: "are You arriving?",
+                s3PP: "are They arriving?"
             },			
             Future: {			
-                s1PS: "Will I arrive",
-                s2PS: "Will You arrive",
-                s3PSm: "Will He arrive",
-                s3PSf: "Will She arrive",
-                s3PSi: "Will It arrives",
-                s1PP: "Will We arrive",
-                s2PP: "Will You arrive",
-                s3PP: "Will They arrive"
+                s1PS: "Will I arrive?",
+                s2PS: "Will You arrive?",
+                s3PSm: "Will He arrive?",
+                s3PSf: "Will She arrive?",
+                s3PSi: "Will It arrive?",
+                s1PP: "Will We arrive?",
+                s2PP: "Will You arrive?",
+                s3PP: "Will They arrive?"
             }			
         }				
     },					
@@ -471,44 +601,44 @@ var verbs = {
         },				
         Interrogative: {				
             Present: {			
-                s1PS: "Do I come",
-                s2PS: "Do You come",
-                s3PSm: "Does He come",
-                s3PSf: "Does She come",
-                s3PSi: "Does It come",
-                s1PP: "Does We come",
-                s2PP: "Do You come",
-                s3PP: "Do They come"
+                s1PS: "Do I come?",
+                s2PS: "Do You come?",
+                s3PSm: "Does He come?",
+                s3PSf: "Does She come?",
+                s3PSi: "Does It come?",
+                s1PP: "Does We come?",
+                s2PP: "Do You come?",
+                s3PP: "Do They come?"
             },			
             PastSimple: {			
-                s1PS: "Did I come",
-                s2PS: "Did You come",
-                s3PSm: "Did He come",
-                s3PSf: "Did She come",
-                s3PSi: "Did It come",
-                s1PP: "Did We come",
-                s2PP: "Did You come",
-                s3PP: "Did They come"
+                s1PS: "Did I come?",
+                s2PS: "Did You come?",
+                s3PSm: "Did He come?",
+                s3PSf: "Did She come?",
+                s3PSi: "Did It come?",
+                s1PP: "Did We come?",
+                s2PP: "Did You come?",
+                s3PP: "Did They come?"
             },			
             PresentContinous: {			
-                s1PS: "am I  coming",
-                s2PS: "are You  coming",
-                s3PSm: "is He coming",
-                s3PSf: "is She coming",
-                s3PSi: "is It coming",
-                s1PP: "are We  coming",
-                s2PP: "are You  coming",
-                s3PP: "are They  coming"
+                s1PS: "am I coming?",
+                s2PS: "are You coming?",
+                s3PSm: "is He coming?",
+                s3PSf: "is She coming?",
+                s3PSi: "is It coming?",
+                s1PP: "are We coming?",
+                s2PP: "are You coming?",
+                s3PP: "are They coming?"
             },			
             Future: {			
-                s1PS: "Will I come",
-                s2PS: "Will You come",
-                s3PSm: "Will He come",
-                s3PSf: "Will She come",
-                s3PSi: "Will It comes",
-                s1PP: "Will We come",
-                s2PP: "Will You come",
-                s3PP: "Will They come"
+                s1PS: "Will I come?",
+                s2PS: "Will You come?",
+                s3PSm: "Will He come?",
+                s3PSf: "Will She come?",
+                s3PSi: "Will It come?",
+                s1PP: "Will We come?",
+                s2PP: "Will You come?",
+                s3PP: "Will They come?"
             }			
         }				
     },					
@@ -599,44 +729,44 @@ var verbs = {
         },				
         Interrogative: {				
             Present: {			
-                s1PS: "Do I play",
-                s2PS: "Do You play",
-                s3PSm: "Does He play",
-                s3PSf: "Does She play",
-                s3PSi: "Does It play",
-                s1PP: "Does We play",
-                s2PP: "Do You play",
-                s3PP: "Do They play"
+                s1PS: "Do I play?",
+                s2PS: "Do You play?",
+                s3PSm: "Does He play?",
+                s3PSf: "Does She play?",
+                s3PSi: "Does It play?",
+                s1PP: "Does We play?",
+                s2PP: "Do You play?",
+                s3PP: "Do They play?"
             },			
             PastSimple: {			
-                s1PS: "Did I play",
-                s2PS: "Did You play",
-                s3PSm: "Did He play",
-                s3PSf: "Did She play",
-                s3PSi: "Did It play",
-                s1PP: "Did We play",
-                s2PP: "Did You play",
-                s3PP: "Did They play"
+                s1PS: "Did I play?",
+                s2PS: "Did You play?",
+                s3PSm: "Did He play?",
+                s3PSf: "Did She play?",
+                s3PSi: "Did It play?",
+                s1PP: "Did We play?",
+                s2PP: "Did You play?",
+                s3PP: "Did They play?"
             },			
             PresentContinous: {			
-                s1PS: "am I  playing",
-                s2PS: "are You  playing",
-                s3PSm: "is He playing",
-                s3PSf: "is She playing",
-                s3PSi: "is It playing",
-                s1PP: "are We  playing",
-                s2PP: "are You  playing",
-                s3PP: "are They  playing"
+                s1PS: "am I playing?",
+                s2PS: "are You playing?",
+                s3PSm: "is He playing?",
+                s3PSf: "is She playing?",
+                s3PSi: "is It playing?",
+                s1PP: "are We playing?",
+                s2PP: "are You playing?",
+                s3PP: "are They playing?"
             },			
             Future: {			
-                s1PS: "Will I play",
-                s2PS: "Will You play",
-                s3PSm: "Will He play",
-                s3PSf: "Will She play",
-                s3PSi: "Will It plays",
-                s1PP: "Will We play",
-                s2PP: "Will You play",
-                s3PP: "Will They play"
+                s1PS: "Will I play?",
+                s2PS: "Will You play?",
+                s3PSm: "Will He play?",
+                s3PSf: "Will She play?",
+                s3PSi: "Will It play?",
+                s1PP: "Will We play?",
+                s2PP: "Will You play?",
+                s3PP: "Will They play?"
             }			
         }				
     },					
@@ -728,44 +858,44 @@ var verbs = {
         },				
         Interrogative: {				
             Present: {			
-                s1PS: "Do I walk",
-                s2PS: "Do You walk",
-                s3PSm: "Does He walk",
-                s3PSf: "Does She walk",
-                s3PSi: "Does It walk",
-                s1PP: "Does We walk",
-                s2PP: "Do You walk",
-                s3PP: "Do They walk"
+                s1PS: "Do I walk?",
+                s2PS: "Do You walk?",
+                s3PSm: "Does He walk?",
+                s3PSf: "Does She walk?",
+                s3PSi: "Does It walk?",
+                s1PP: "Does We walk?",
+                s2PP: "Do You walk?",
+                s3PP: "Do They walk?"
             },			
             PastSimple: {			
-                s1PS: "Did I walk",
-                s2PS: "Did You walk",
-                s3PSm: "Did He walk",
-                s3PSf: "Did She walk",
-                s3PSi: "Did It walk",
-                s1PP: "Did We walk",
-                s2PP: "Did You walk",
-                s3PP: "Did They walk"
+                s1PS: "Did I walk?",
+                s2PS: "Did You walk?",
+                s3PSm: "Did He walk?",
+                s3PSf: "Did She walk?",
+                s3PSi: "Did It walk?",
+                s1PP: "Did We walk?",
+                s2PP: "Did You walk?",
+                s3PP: "Did They walk?"
             },			
             PresentContinous: {			
-                s1PS: "am I  walking",
-                s2PS: "are You  walking",
-                s3PSm: "is He walking",
-                s3PSf: "is She walking",
-                s3PSi: "is It walking",
-                s1PP: "are We  walking",
-                s2PP: "are You  walking",
-                s3PP: "are They  walking"
+                s1PS: "am I walking?",
+                s2PS: "are You walking?",
+                s3PSm: "is He walking?",
+                s3PSf: "is She walking?",
+                s3PSi: "is It walking?",
+                s1PP: "are We walking?",
+                s2PP: "are You walking?",
+                s3PP: "are They walking?"
             },			
             Future: {			
-                s1PS: "Will I walk",
-                s2PS: "Will You walk",
-                s3PSm: "Will He walk",
-                s3PSf: "Will She walk",
-                s3PSi: "Will It walks",
-                s1PP: "Will We walk",
-                s2PP: "Will You walk",
-                s3PP: "Will They walk"
+                s1PS: "Will I walk?",
+                s2PS: "Will You walk?",
+                s3PSm: "Will He walk?",
+                s3PSf: "Will She walk?",
+                s3PSi: "Will It walk?",
+                s1PP: "Will We walk?",
+                s2PP: "Will You walk?",
+                s3PP: "Will They walk?"
             }			
         }				
     },	
@@ -856,44 +986,44 @@ var verbs = {
         },				
         Interrogative: {				
             Present: {			
-                s1PS: "Do I run",
-                s2PS: "Do You run",
-                s3PSm: "Does He run",
-                s3PSf: "Does She run",
-                s3PSi: "Does It run",
-                s1PP: "Does We run",
-                s2PP: "Do You run",
-                s3PP: "Do They run"
+                s1PS: "Do I run?",
+                s2PS: "Do You run?",
+                s3PSm: "Does He run?",
+                s3PSf: "Does She run?",
+                s3PSi: "Does It run?",
+                s1PP: "Does We run?",
+                s2PP: "Do You run?",
+                s3PP: "Do They run?"
             },			
             PastSimple: {			
-                s1PS: "Did I run",
-                s2PS: "Did You run",
-                s3PSm: "Did He run",
-                s3PSf: "Did She run",
-                s3PSi: "Did It run",
-                s1PP: "Did We run",
-                s2PP: "Did You run",
-                s3PP: "Did They run"
+                s1PS: "Did I run?",
+                s2PS: "Did You run?",
+                s3PSm: "Did He run?",
+                s3PSf: "Did She run?",
+                s3PSi: "Did It run?",
+                s1PP: "Did We run?",
+                s2PP: "Did You run?",
+                s3PP: "Did They run?"
             },			
             PresentContinous: {			
-                s1PS: "am I  running",
-                s2PS: "are You  running",
-                s3PSm: "is He running",
-                s3PSf: "is She running",
-                s3PSi: "is It running",
-                s1PP: "are We  running",
-                s2PP: "are You  running",
-                s3PP: "are They  running"
+                s1PS: "Am I running?",
+                s2PS: "Are You running?",
+                s3PSm: "Is He running?",
+                s3PSf: "Is She running?",
+                s3PSi: "Is It running?",
+                s1PP: "Are We running?",
+                s2PP: "Are You running?",
+                s3PP: "Are They running?"
             },			
             Future: {			
-                s1PS: "Will I run",
-                s2PS: "Will You run",
-                s3PSm: "Will He run",
-                s3PSf: "Will She run",
-                s3PSi: "Will It runs",
-                s1PP: "Will We run",
-                s2PP: "Will You run",
-                s3PP: "Will They run"
+                s1PS: "Will I run?",
+                s2PS: "Will You run?",
+                s3PSm: "Will He run?",
+                s3PSf: "Will She run?",
+                s3PSi: "Will It run?",
+                s1PP: "Will We run?",
+                s2PP: "Will You run?",
+                s3PP: "Will They run?"
             }			
         }				
     }
