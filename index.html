@@ -60,6 +60,7 @@
     </body>
     <script src="serialize-0.2.min.js"></script>
     <script src="verbs.js"></script>
+    <script src="verbs-cat.js"></script>
     <script>
         var users = {
             Guillem:"Guillem.png",
@@ -117,6 +118,7 @@
         var tense="";
         var subject="";
         var answer="";
+        var translation="";
         var score =0;
         var total =0;
 
@@ -322,13 +324,15 @@
             subject=rndkeys(verbs[verb][form][tense]);
             return {
                 Question: "<B>"+subjects[subject]+"</B> of the verb <B>To "+ verb.split("To")[1] + "</B> in  <B>" +form+ "</B> for the <B>"+ tense +"</B>",
-                Answer: verbs[verb][form][tense][subject]
+                Answer: verbs[verb][form][tense][subject],
+                Translation: verbs_cat[verb][form][tense][subject]
             };
         }
 
         function buildForm(question) {
             prnt(question);
-            prnt("<input type='text' id='tanswer' autofocus><button id='banswer' onclick='checkAnswer()'>Check</button>");
+            prnt("<input type='text' id='tanswer' onkeypress='checkEnter()' autofocus><button id='banswer' onclick='checkAnswer()'>Check</button>");
+            document.getElementById("tanswer").select();
         }
 
         //onkeypress='checkEnter()'
@@ -354,8 +358,9 @@
                     //#degug alert("1formCreate");
                     formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true,answer:answer,answered:entered});
                     formSubmit("result"+total);
-                    prnt('<font color="green">'+entered.toLowerCase().trim()+'</font><br>');
-                    prnt("Well done");
+                    prnt("Well done<br>");
+                    prnt('<font color="green"><B>Correct: </B>'+entered+'</font>');
+                    prnt('<font color="blue"><B>Translation: </B>'+translation+'</font>');
                     score+=1;
                 }else{
                     formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered"]);
@@ -363,8 +368,9 @@
                     formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false,answer:answer,answered:entered});
                     formSubmit("result"+total);
                     secs = 6000;
-                    prnt('<font color="red"><B>Incorrect: </B>'+entered.toLowerCase().trim()+'</font>');
-                    prnt('<font color="green"><B>Correct answer was: </B>'+answer.toLowerCase().trim()+'</font>');
+                    prnt('<font color="red"><B>Incorrect: </B>'+entered+'</font>');
+                    prnt('<font color="green"><B>Correct answer was: </B>'+answer+'</font>');
+                    prnt('<font color="blue"><B>Translation: </B>'+translation+'</font>');
                 }
             } catch(err) {
                 alert(err.message);
@@ -381,6 +387,7 @@
             clr();
             var question=buildQuestion();
             answer=question.Answer;
+            translation=question.Translation;
             buildForm(question.Question);
             prntFooter();
         }
