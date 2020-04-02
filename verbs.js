@@ -1,3 +1,48 @@
+var contractions = [
+    ["’","'"],
+    ["are not","aren't"],
+    ["is not","isn't"],
+    ["do not","don't"],
+    ["does not","doesn't"],
+    ["have not","haven't"],
+    ["has not","hasn't"],
+    ["was not","wasn't"],
+    ["were not","weren't"],
+    ["did not","didn't"],
+    ["had not","hadn't"],
+    ["will not","won't"],
+    ["i am","i'm"],
+    ["you are","you're"],
+    ["he is","he's"],
+    ["she is","she's"],
+    ["it is","it's"],
+    ["we are","we're"],
+    ["you are","you're"],
+    ["they are","they're"],
+    ["i	have","i've"],
+    ["you have","you've"],
+    ["we have","we've"],
+    ["you have","you've"],
+    ["they have","they've"],
+    ["i	have got","i've got"],
+    ["you have got","you've got"],
+    ["he has got","he's got"],
+    ["she has got","she's got"],
+    ["it has got","it's got"],
+    ["we have got","we've got"],
+    ["you have got","you've got"],
+    ["they have got","they've got"],
+    ["i will","i'll"],
+    ["you will","you'll"],
+    ["he will","he'll"],
+    ["she will","she'll"],
+    ["it will","it'll"],
+    ["we will","we'll"],
+    ["you will","you'll"],
+    ["they will","they'll"]
+];
+
+
 var verbs = {
 
     ToBe: {					
@@ -45,14 +90,14 @@ var verbs = {
         },				
         Negative: {				
             Present: {			
-                s1PS: "I have not",
-                s2PS: "You have not",
-                s3PSm: "He has not",
-                s3PSf: "She has not",
-                s3PSi: "It has not",
-                s1PP: "We have not",
-                s2PP: "You have not",
-                s3PP: "They have not"
+                s1PS: "I am not",
+                s2PS: "You are not",
+                s3PSm: "He is not",
+                s3PSf: "She is not",
+                s3PSi: "It is not",
+                s1PP: "We are not",
+                s2PP: "You are not",
+                s3PP: "They are not"
             },			
             PastSimple: {			
                 s1PS: "I was not",
