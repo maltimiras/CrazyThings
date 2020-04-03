@@ -223,9 +223,6 @@
             //alert("tenses "+e.id);
             clr("header");
             prnt("<div class='GameSelector'>"+help[e.id]+"</div>","header");
-            
-            //setTimeout(clr("header"),2000);
-            //e.preventDefault();
         }
 
         function prntCheckForms(value){
@@ -274,12 +271,19 @@
         function onFinish(){
             clr();
             clr("foot");
-            //setTimeout(window.close,2000);
-            results.forEach(prntResult);
-        }
-
-        function prntResult(value) {
-            prnt(value.user + " " + value.verb + " " + value.form + " " + value.tense + " " + value.subject + " " + value.result);
+            currentuser = "";
+            selVerbs = [];
+            selTenses = [];
+            selForms= []; 
+            verb = "";
+            form="";
+            tense="";
+            subject="";
+            answer="";
+            translation="";
+            score =0;
+            total =0;            
+            setTimeout(UserSelection,4500);
         }
 
         function formCreate(formid,lfields) {
@@ -349,23 +353,24 @@
             try {
                 //#degug alert("checkAnswer");
                 var secs = 3000;
+                var ipad = document.getElementById("tanswer").value;
                 answer = strUniform(strClean(answer.toLowerCase().trim()));
                 entered = strUniform(strClean(document.getElementById("tanswer").value.toLowerCase().trim()));
                 document.getElementById("tanswer").style.display = 'none';
                 document.getElementById("banswer").style.display = 'none';
                 if (entered==answer) {
-                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered"]);
+                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered","ipad"]);
                     //#degug alert("1formCreate");
-                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true,answer:answer,answered:entered});
+                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true,answer:answer,answered:entered,ipad:ipad});
                     formSubmit("result"+total);
                     prnt("Well done<br>");
                     prnt('<font color="green"><B>Correct: </B>'+entered+'</font>');
                     prnt('<font color="blue"><B>Translation: </B>'+translation+'</font>');
                     score+=1;
                 }else{
-                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered"]);
+                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered","ipad"]);
                     //#degug alert("2formCreate"+currentuser);
-                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false,answer:answer,answered:entered});
+                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false,answer:answer,answered:entered,ipad:ipad});
                     formSubmit("result"+total);
                     secs = 6000;
                     prnt('<font color="red"><B>Incorrect: </B>'+entered+'</font>');
