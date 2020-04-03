@@ -219,14 +219,14 @@ var verbs = {
         },				
         Negative: {				
             Present: {			
-                s1PS: "I have not",
-                s2PS: "You have not",
-                s3PSm: "He has not",
-                s3PSf: "She has not",
-                s3PSi: "It has not",
-                s1PP: "We have not",
-                s2PP: "You have not",
-                s3PP: "They have not"
+                s1PS: "I don't have",
+                s2PS: "You don't have",
+                s3PSm: "He doesn't have",
+                s3PSf: "She doesn't have",
+                s3PSi: "It doesn't have",
+                s1PP: "We don't have",
+                s2PP: "You don't have",
+                s3PP: "They don't have"
             },			
             PastSimple: {			
                 s1PS: "I had not",
