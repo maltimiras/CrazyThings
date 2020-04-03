@@ -5,256 +5,256 @@ var verbs_cat = {
         Affirmative: {             
             Present: {         
                 s1PS: "Jo sóc" ,
-                s2PS: "Ets" ,
+                s2PS: "Tu ets" ,
                 s3PSm: "Ell és" ,
                 s3PSf: "Ella és" ,
-                s3PSi: "És" ,
-                s1PP: "Som" ,
-                s2PP: "Ets" ,
-                s3PP: "Són"
+                s3PSi: "El és" ,
+                s1PP: "Nosaltres som" ,
+                s2PP: "Vosaltres sou" ,
+                s3PP: "Nosaltres som"
             },         
             PastSimple: {          
                 s1PS: "Jo era" ,
-                s2PS: "Eres" ,
-                s3PSm: "Ell era" ,
+                s2PS: "Tu eres" ,
+                s3PSm: "Ells era" ,
                 s3PSf: "Ella era" ,
-                s3PSi: "Era" ,
-                s1PP: "Érem" ,
-                s2PP: "Eres" ,
-                s3PP: "Eren"
+                s3PSi: "Ell era" ,
+                s1PP: "Nosaltres erem" ,
+                s2PP: "Vosaltres ereu" ,
+                s3PP: "Ells eren"
             },         
             PresentContinous: {        
-                s1PS: "Estic sent" ,
-                s2PS: "Esteu sent" ,
-                s3PSm: "Està sent" ,
+                s1PS: "Jo estic sent" ,
+                s2PS: "Tu estas sent" ,
+                s3PSm: "Ell està sent" ,
                 s3PSf: "Ella està sent" ,
-                s3PSi: "Està sent" ,
-                s1PP: "Estem sent" ,
-                s2PP: "Esteu sent" ,
-                s3PP: "Estan sent"
+                s3PSi: "Ell està sent" ,
+                s1PP: "Nosaltres estem sent" ,
+                s2PP: "Vosaltres esteu sent" ,
+                s3PP: "Ells estan sent"
             },         
             Future: {          
-                s1PS: "Seré" ,
-                s2PS: "Seràs" ,
-                s3PSm: "Serà" ,
+                s1PS: "Jo seré" ,
+                s2PS: "Tu seràs" ,
+                s3PSm: "Ell serà" ,
                 s3PSf: "Ella serà" ,
-                s3PSi: "Serà" ,
-                s1PP: "Estarem" ,
-                s2PP: "Seràs" ,
-                s3PP: "Seran"
+                s3PSi: "Ella serà" ,
+                s1PP: "Nosaltres serem",
+                s2PP: "Vosaltres sereu",
+                s3PP: "Ells seran"
             }          
         },             
         Negative: {            
             Present: {         
-                s1PS: "Jo no sóc" ,
-                s2PS: "No ho ets" ,
-                s3PSm: "No ho és" ,
-                s3PSf: "No ho és" ,
-                s3PSi: "No ho és" ,
-                s1PP: "No ho som" ,
-                s2PP: "No ho ets" ,
-                s3PP: "No ho són"
-            },         
+                s1PS: "Jo no ho sóc" ,
+                s2PS: "Tu no ho ets" ,
+                s3PSm: "Ell no ho és" ,
+                s3PSf: "Ella no ho és" ,
+                s3PSi: "Ell no ho és" ,
+                s1PP: "Nosaltres no ho som" ,
+                s2PP: "Vosaltres no ho sou" ,
+                s3PP: "Ells no ho són"
+            },                
             PastSimple: {          
                 s1PS: "Jo no era" ,
-                s2PS: "No éreu " ,
-                s3PSm: "No ho era" ,
-                s3PSf: "No era ella" ,
-                s3PSi: "No ho era" ,
-                s1PP: "No érem" ,
-                s2PP: "No éreu " ,
-                s3PP: "No ho eren"
+                s2PS: "Tu no eres" ,
+                s3PSm: "Ell no era" ,
+                s3PSf: "Ella no era" ,
+                s3PSi: "Ell no era" ,
+                s1PP: "Nosaltres no erem" ,
+                s2PP: "Vosaltres no ereu" ,
+                s3PP: "Ells no eren"
             },         
             PresentContinous: {        
-                s1PS: "No ho estic sent" ,
-                s2PS: "No esteu sent" ,
-                s3PSm: "No ho està sent" ,
+                s1PS: "Jo no  estic sent" ,
+                s2PS: "Tu no estas sent" ,
+                s3PSm: "Ell no està sent" ,
                 s3PSf: "Ella no està sent" ,
-                s3PSi: "No s'està sent" ,
-                s1PP: "No estem sent" ,
-                s2PP: "No esteu sent" ,
-                s3PP: "No s'estan sent"
+                s3PSi: "Ell no està sent" ,
+                s1PP: "Nosaltres no estem sent" ,
+                s2PP: "Vosaltres no esteu sent" ,
+                s3PP: "Ells no estan sent"
             },         
             Future: {          
-                s1PS: "No seré" ,
-                s2PS: "No sereu" ,
-                s3PSm: "No serà" ,
-                s3PSf: "No serà" ,
-                s3PSi: "No serà" ,
-                s1PP: "No serem" ,
-                s2PP: "No sereu" ,
-                s3PP: "No seran"
-            }          
+                s1PS: "Jo no seré" ,
+                s2PS: "Tu no seràs" ,
+                s3PSm: "Ell no serà" ,
+                s3PSf: "Ella no serà" ,
+                s3PSi: "Ella no serà" ,
+                s1PP: "Nosaltres no serem",
+                s2PP: "Vosaltres no sereu",
+                s3PP: "Ells no seran"
+            }            
         },             
         Interrogative: {               
             Present: {         
-                s1PS: "Sóc jo?" ,
-                s2PS: "Ets?" ,
-                s3PSm: "És ell?" ,
-                s3PSf: "És ella?" ,
-                s3PSi: "És?" ,
-                s1PP: "Estem?" ,
-                s2PP: "Ets?" ,
-                s3PP: "Són?"
+                s1PS: "Ho sóc jo?" ,
+                s2PS: "Ho ets tu?" ,
+                s3PSm: "Ho és ell?" ,
+                s3PSf: "Ho és ella?" ,
+                s3PSi: "Ho és ell?" ,
+                s1PP: "Ho son nosaltres?" ,
+                s2PP: "Ho sou vosaltres?" ,
+                s3PP: "Ho son ells?"
             },         
             PastSimple: {          
-                s1PS: "Jo estava?" ,
-                s2PS: " Eres ?" ,
-                s3PSm: "Era ell?" ,
-                s3PSf: "Era ella?" ,
-                s3PSi: "Va ser?" ,
-                s1PP: " Erem nosaltres?" ,
-                s2PP: " Eres ?" ,
-                s3PP: "Eren ells?"
+                s1PS: "Ho era jo?" ,
+                s2PS: "Ho ets tu?" ,
+                s3PSm: "Ho era ell?" ,
+                s3PSf: "Ho era ella?" ,
+                s3PSi: "Ho era ell?" ,
+                s1PP: "Ho erem nosaltres?" ,
+                s2PP: "Ho ereu vosaltres?" ,
+                s3PP: "Ho eren ells?"
             },         
             PresentContinous: {        
-                s1PS: "Estic sent?" ,
-                s2PS: "Esteu sent?" ,
-                s3PSm: "Està sent?" ,
-                s3PSf: "Està sent?" ,
-                s3PSi: "Ho està sent?" ,
-                s1PP: "Està sent?" ,
-                s2PP: "Està sent?" ,
-                s3PP: "Està sent?"
-            },         
+                s1PS: "Ho estic sent jo?" ,
+                s2PS: "Ho estas sent tu?" ,
+                s3PSm: "ho està sent ell?" ,
+                s3PSf: "ho està sent ella?" ,
+                s3PSi: "ho està sent ell?" ,
+                s1PP: "Ho estem sent nosatres?" ,
+                s2PP: "Ho esteu sent vosaltres?" ,
+                s3PP: "Ho estan sent ells?"
+            },
             Future: {          
-                s1PS: "Seré?" ,
-                s2PS: " Seràs ?" ,
-                s3PSm: "Serà ell?" ,
-                s3PSf: "Serà ella?" ,
-                s3PSi: "Serà?" ,
-                s1PP: " Serem ?" ,
-                s2PP: " Seràs ?" ,
-                s3PP: "Seran?"
-            }          
+                s1PS: "Ho seré jo?" ,
+                s2PS: "Ho seràs tu?" ,
+                s3PSm: "Ho serà ell?" ,
+                s3PSf: "Ho serà ella?" ,
+                s3PSi: "Ho serà ell?" ,
+                s1PP: "Ho serem nosoaltres?",
+                s2PP: "Ho sereu vosaltres?",
+                s3PP: "Ho seran ells?"
+            }             
         }              
     },
  
     ToHave: {                  
         Affirmative: {             
             Present: {         
-                s1PS: "Tinc" ,
-                s2PS: "Teniu" ,
+                s1PS: "Jo tinc" ,
+                s2PS: "Tu tens" ,
                 s3PSm: "Ell té" ,
                 s3PSf: "Ella té" ,
-                s3PSi: "Té" ,
-                s1PP: "Tenim" ,
-                s2PP: "Teniu" ,
-                s3PP: "Tenen"
+                s3PSi: "Ell té" ,
+                s1PP: "Nosaltres tenim" ,
+                s2PP: "Vosaltres teniu" ,
+                s3PP: "Ells tenen"
             },         
             PastSimple: {          
                 s1PS: "Jo tenia" ,
-                s2PS: " Tenies " ,
-                s3PSm: "El tenia" ,
+                s2PS: "Tu tenies" ,
+                s3PSm: "Ell tenia" ,
                 s3PSf: "Ella tenia" ,
-                s3PSi: "Tenia" ,
-                s1PP: "Teníem" ,
-                s2PP: " Teníeu " ,
-                s3PP: "Tenien"
+                s3PSi: "Ell tenia" ,
+                s1PP: "Nosaltres teníem" ,
+                s2PP: "Vosaltres teníeu" ,
+                s3PP: "Ells tenien"
             },         
             PresentContinous: {        
-                s1PS: "Estic tenint" ,
-                s2PS: "Esteu tenint" ,
+                s1PS: "Jo estic tenint" ,
+                s2PS: "Tu estas tenint" ,
                 s3PSm: "Ell està tenint" ,
                 s3PSf: "Ella està tenint" ,
-                s3PSi: "Està tenint" ,
-                s1PP: "Estem tenint" ,
-                s2PP: "Esteu tenint" ,
-                s3PP: "Estan tenint"
+                s3PSi: "Ell està tenint" ,
+                s1PP: "Nosaltres estem tenint" ,
+                s2PP: "Vosaltres esteu tenint" ,
+                s3PP: "Ells estan tenint"
             },         
             Future: {          
-                s1PS: "Ja tindré" ,
-                s2PS: "Tindràs" ,
+                s1PS: "Jo tindré" ,
+                s2PS: "Tu tindràs" ,
                 s3PSm: "Ell tindrà" ,
                 s3PSf: "Ella tindrà" ,
-                s3PSi: "Ja tindrà" ,
-                s1PP: "En tindrem" ,
-                s2PP: "Tindràs" ,
-                s3PP: "Tindran"
+                s3PSi: "Ell tindrà" ,
+                s1PP: "Nosaltres tindrem" ,
+                s2PP: "Vosaltres tindreu" ,
+                s3PP: "Ells tindran"
             }          
         },             
-        Negative: {            
+        Negative: {               
             Present: {         
-                s1PS: "No ho he fet" ,
-                s2PS: "No ho teniu" ,
-                s3PSm: "No ho ha fet" ,
-                s3PSf: "Ella no ho ha fet" ,
-                s3PSi: "No ho ha fet" ,
-                s1PP: "No ho tenim" ,
-                s2PP: "No ho teniu" ,
-                s3PP: "No ho tenen"
-            },         
+                s1PS: "Jo no ho tinc" ,
+                s2PS: "Tu no ho tens" ,
+                s3PSm: "Ell no ho té" ,
+                s3PSf: "Ella no ho té" ,
+                s3PSi: "Ell no ho té" ,
+                s1PP: "Nosaltres no ho tenim" ,
+                s2PP: "Vosaltres no ho teniu" ,
+                s3PP: "Ells no ho tenen"
+            },                   
             PastSimple: {          
-                s1PS: "No ho tenia" ,
-                s2PS: "No ho havíeu fet" ,
-                s3PSm: "No ho tenia" ,
-                s3PSf: "No hi havia" ,
-                s3PSi: "No ho tenia" ,
-                s1PP: "No ho teníem" ,
-                s2PP: "No ho havíeu fet" ,
-                s3PP: "No ho tenien"
+                s1PS: "Jo no ho tenia" ,
+                s2PS: "Tu no ho tenies" ,
+                s3PSm: "Ell no ho tenia" ,
+                s3PSf: "Ella no ho tenia" ,
+                s3PSi: "Ell no ho tenia" ,
+                s1PP: "Nosaltres no ho teníem" ,
+                s2PP: "Vosaltres no ho tenieu" ,
+                s3PP: "Ells no ho tenien"
             },         
             PresentContinous: {        
-                s1PS: "No estic tenint" ,
-                s2PS: "No esteu tenint" ,
-                s3PSm: "Ell no està tenint" ,
+                s1PS: "Jo no ho estic tenint" ,
+                s2PS: "Tu no ho estas tenint" ,
+                s3PSm: "Ell no ho està tenint" ,
                 s3PSf: "Ella no està tenint" ,
-                s3PSi: "No està tenint" ,
-                s1PP: "No estem tenint" ,
-                s2PP: "No esteu tenint" ,
-                s3PP: "No estan tenint"
+                s3PSi: "Ell no ho està tenint" ,
+                s1PP: "Nosaltres no ho estem tenint" ,
+                s2PP: "Vosaltres no ho esteu tenint" ,
+                s3PP: "Ells no ho estan tenint"
             },         
             Future: {          
-                s1PS: "No tindré" ,
-                s2PS: "No tindreu" ,
-                s3PSm: "No en tindrà" ,
-                s3PSf: "No tindrà" ,
-                s3PSi: "No tindrà" ,
-                s1PP: "No en tindrem" ,
-                s2PP: "No tindreu" ,
-                s3PP: "No tindran"
+                s1PS: "Jo no en tindré" ,
+                s2PS: "Tu no en tindras" ,
+                s3PSm: "Ell no en tindrà" ,
+                s3PSf: "Ella no en tindrà" ,
+                s3PSi: "Ell no en tindrà" ,
+                s1PP: "Nosaltres no en tindrem" ,
+                s2PP: "Vosaltres no en tindreu" ,
+                s3PP: "Ells no en tindran"
             }          
         },             
         Interrogative: {               
             Present: {         
-                s1PS: "Tinc?" ,
-                s2PS: "En tens?" ,
-                s3PSm: "Té?" ,
-                s3PSf: "Té ella?" ,
-                s3PSi: "Té?" ,
-                s1PP: "Tenim?" ,
-                s2PP: "Teniu?" ,
-                s3PP: "Tenen?"
-            },         
+                s1PS: "ho tinc jo" ,
+                s2PS: "ho tens tu" ,
+                s3PSm: "ho té ell" ,
+                s3PSf: "ho té ella" ,
+                s3PSi: "ho té ell" ,
+                s1PP: "ho tenim nosaltres" ,
+                s2PP: "ho teniu vosaltres" ,
+                s3PP: "ho tenen ells"
+            },          
             PastSimple: {          
-                s1PS: "Ho tenia?" ,
-                s2PS: "Ho teníeu ?" ,
-                s3PSm: "El tenia?" ,
-                s3PSf: "La tenia?" ,
-                s3PSi: "Ho tenia?" ,
-                s1PP: "Teníem?" ,
-                s2PP: "Ho teníeu?" ,
-                s3PP: "Tenien?"
-            },         
+                s1PS: "Ho tenia jo?" ,
+                s2PS: "Ho tenies tu?" ,
+                s3PSm: "Ho tenia ell?" ,
+                s3PSf: "Ho tenia ella?" ,
+                s3PSi: "Ho tenia ell?" ,
+                s1PP: "Ho teníem nosaltres ?" ,
+                s2PP: "Ho teníeu vosaltres ?" ,
+                s3PP: "Ho tenien ells ?"
+            },       
             PresentContinous: {        
-                s1PS: "Tinc?" ,
-                s2PS: "Esteu tenint?" ,
-                s3PSm: "Ell està tenint?" ,
-                s3PSf: "Ella està tenint?" ,
+                s1PS: "Ho estic tenint jo?" ,
+                s2PS: "Ho estas tenint tu?" ,
+                s3PSm: "Ho està tenint ell?" ,
+                s3PSf: "Ella ho està tenint?" ,
                 s3PSi: "Ell està tenint?" ,
-                s1PP: "Està tenint?" ,
-                s2PP: "Està tenint?" ,
-                s3PP: "Està tenint?"
+                s1PP: "Ho estem tenint nosaltres?" ,
+                s2PP: "Ho esteu tenint vosaltres?" ,
+                s3PP: "Ho estan tenint ells?"
             },         
             Future: {          
-                s1PS: "Ho tindré?" ,
-                s2PS: " Ho tindràs?" ,
-                s3PSm: "El tindrà?" ,
-                s3PSf: "Ella tindrà?" ,
-                s3PSi: "Ho tindrà?" ,
-                s1PP: "La tindrem?" ,
-                s2PP: "Ja ho tindràs?" ,
-                s3PP: "Tindran?"
+                s1PS: "En tindré jo?" ,
+                s2PS: "En tindràs tu?" ,
+                s3PSm: "En tindrà ell?" ,
+                s3PSf: "En tindrà ella?" ,
+                s3PSi: "En tindrà ell?" ,
+                s1PP: "En tindrem nosaltres?" ,
+                s2PP: "En tindreu vosaltres?" ,
+                s3PP: "En tindran ells?"
             }          
         }              
     },
