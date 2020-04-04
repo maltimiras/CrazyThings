@@ -444,8 +444,8 @@
                 //#degug alert("checkAnswer");
                 var secs = 3000;
                 var ipad = document.getElementById("tanswer").value;
-                answer = strUniform(strClean(answer.toLowerCase().trim()));
-                entered = strUniform(strClean(document.getElementById("tanswer").value.toLowerCase().trim()));
+                answer = strClean(strUniform(answer.toLowerCase().trim()));
+                entered = strClean(strUniform(document.getElementById("tanswer").value.toLowerCase().trim()));
                 document.getElementById("tanswer").style.display = 'none';
                 document.getElementById("banswer").style.display = 'none';
                 if (entered==answer) {
