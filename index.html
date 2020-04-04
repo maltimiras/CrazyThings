@@ -33,6 +33,31 @@
             display: inline; 
         }
 
+        .verbblock {
+            margin:0 3vw 0 3vw;
+            display: inline-block;
+            float: left; 
+        }
+
+        .GameSelectorVerbs {
+            overflow: auto;
+        }
+
+        .GameSelectorVerbs h1,
+        .GameSelectorVerbs h2 {
+            font-size: 2vw;   
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .GameSelectorVerbs li {
+            font-size: 1.5vw;   
+        }
+
+        .GameSelectorVerbs p {
+            margin: 0;   
+        }
+
         .subject {
             color:blue; 
             display:inline;   
@@ -126,6 +151,16 @@
         function prnt(text,id){ 
             var output = document.getElementById(id || "screen"); 
             output.innerHTML = output.innerHTML + "<br>" + text;
+        }
+
+        function prntnl(text,id){ 
+            var output = document.getElementById(id || "screen"); 
+            output.innerHTML = output.innerHTML + "<br>" + text;
+        }
+
+        function prntnobr(text,id){ 
+            var output = document.getElementById(id || "screen"); 
+            output.innerHTML = output.innerHTML + text;
         }
 
         function html(id){ 
@@ -230,9 +265,63 @@
         }
 
         function prntCheckVerbs(value){
-            prnt(strProper(value) + "<input type='checkbox' name='Verbs' id='"+value+"' checked>");
+            prnt(strProper(value) +"<a id='"+value+"' href='javascript: function() {return false;}' onclick='helpVerbs(this)'>?</a>"+ "<input type='checkbox' name='Verbs' id='"+value+"' checked>");
         }
 
+        function prntTree(obj,recursive){
+            //alert(obj);
+            var str = "";
+            if (recursive>0) {
+                var kk = Object.keys(obj);
+                for (var i in kk) {
+                    str = recursive>1 ? str+kk[i]+"<br>" :str;
+                    if (recursive>0) {
+                        str+=prntVerbForm(obj[kk[i]],recursive-1);
+                    }
+                }
+            }else{
+                str+=obj+"<br>";
+            }
+            return str;
+        }
+
+        function prntTreeFormat(obj,format,formatblock,recursive){
+            //alert(obj+":"+format[recursive]+":"+recursive);
+            var str = "";
+            if (recursive>0) {
+                var kk = Object.keys(obj);
+                for (var i in kk) {
+                    str = recursive>1 ? str+applyFormat(format[recursive],kk[i]) :str;
+                    if (recursive>0) {
+                        str+=applyFormat(formatblock[recursive],prntTreeFormat(obj[kk[i]],format,formatblock,recursive-1));
+                    }
+                }
+            }else{
+                str+=applyFormat(format[recursive],obj);
+            }
+            return str;
+        }
+
+        function applyFormat(strformat,value) {
+            return strformat.replace("__",value);
+        }
+
+        //"<h2>__<h2>","<h3>__<h3>"
+        function prntVerb(verb) {
+            var html=prntTreeFormat(verbs[verb],["<p><li>__</li></p>","","<p><h2>__</h2></p>","<div class='verbblock'><p><h1>__</h1></p>"],["__","__","__","__</div>"],3);
+            //alert(html);
+            /*verbs[verb].Affirmative
+            verbs[verb].Negative
+            verbs[verb].Interrogative*/
+            return html;
+        }
+
+        function helpVerbs(e) {
+            //alert("tenses "+e.id);
+            clr("header");
+            var htmlVerb=prntVerb(e.id);
+            prntnobr("<div class='GameSelectorVerbs'>"+htmlVerb+"</div>","header");
+        }
 
         function onStart(){
             var lcheckboxes = document.getElementsByTagName('input');
@@ -271,6 +360,7 @@
         function onFinish(){
             clr();
             clr("foot");
+            clr("header");
             currentuser = "";
             selVerbs = [];
             selTenses = [];
@@ -283,7 +373,7 @@
             translation="";
             score =0;
             total =0;            
-            setTimeout(UserSelection,4500);
+            setTimeout(GameSelectors,100);
         }
 
         function formCreate(formid,lfields) {
