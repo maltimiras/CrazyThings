@@ -229,14 +229,14 @@ var verbs = {
                 s3PP: "They don't have"
             },			
             PastSimple: {			
-                s1PS: "I had not",
-                s2PS: "You had not",
-                s3PSm: "He had not",
-                s3PSf: "She had not",
-                s3PSi: "It had not",
-                s1PP: "We had not",
-                s2PP: "You had not",
-                s3PP: "They had not "
+                s1PS: "I didn't have",
+                s2PS: "You didn't have",
+                s3PSm: "He didn't have",
+                s3PSf: "She didn't have",
+                s3PSi: "It didn't have",
+                s1PP: "We didn't have",
+                s2PP: "You didn't have",
+                s3PP: "They didn't have "
             },			
             PresentContinous: {			
                 s1PS: "I am not having",
