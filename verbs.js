@@ -78,14 +78,14 @@ var verbs = {
                 s3PP: "They are being"
             },			
             Future: {			
-                s1PS: "I Will be",
-                s2PS: "You Will be",
-                s3PSm: "He Will be",
-                s3PSf: "She Will be",
-                s3PSi: "It Will be",
-                s1PP: "We Will be",
-                s2PP: "You Will be",
-                s3PP: "They Will be"
+                s1PS: "I will be",
+                s2PS: "You will be",
+                s3PSm: "He will be",
+                s3PSf: "She will be",
+                s3PSi: "It will be",
+                s1PP: "We will be",
+                s2PP: "You will be",
+                s3PP: "They will be"
             }			
         },				
         Negative: {				
@@ -157,19 +157,19 @@ var verbs = {
                 s3PSm: "Is he being?",
                 s3PSf: "Is she being?",
                 s3PSi: "Is it being?",
-                s1PP: "Are he being?",
-                s2PP: "Are he being?",
-                s3PP: "Are he being?"
+                s1PP: "Are we being?",
+                s2PP: "Are you being?",
+                s3PP: "Are they being?"
             },			
             Future: {			
-                s1PS: "Will I be?",
-                s2PS: "Will you be?",
-                s3PSm: "Will he be?",
-                s3PSf: "Will she be?",
-                s3PSi: "Will it be?",
-                s1PP: "Will we be?",
-                s2PP: "Will you be?",
-                s3PP: "Will they be?"
+                s1PS: "will I be?",
+                s2PS: "will you be?",
+                s3PSm: "will he be?",
+                s3PSf: "will she be?",
+                s3PSi: "will it be?",
+                s1PP: "will we be?",
+                s2PP: "will you be?",
+                s3PP: "will they be?"
             }			
         }				
     },
@@ -291,14 +291,14 @@ var verbs = {
                 s3PP: "Are he having?"
             },			
             Future: {			
-                s1PS: "Will I have?",
-                s2PS: "Will you have?",
-                s3PSm: "Will he have?",
-                s3PSf: "Will she have?",
-                s3PSi: "Will it have?",
-                s1PP: "Will we have?",
-                s2PP: "Will you have?",
-                s3PP: "Will they have?"
+                s1PS: "will I have?",
+                s2PS: "will you have?",
+                s3PSm: "will he have?",
+                s3PSf: "will she have?",
+                s3PSi: "will it have?",
+                s1PP: "will we have?",
+                s2PP: "will you have?",
+                s3PP: "will they have?"
             }			
         }				
     },
@@ -420,14 +420,14 @@ var verbs = {
                 s3PP: "are They saying?"
             },			
             Future: {			
-                s1PS: "Will I say?",
-                s2PS: "Will You say?",
-                s3PSm: "Will He say?",
-                s3PSf: "Will She say?",
-                s3PSi: "Will It say?",
-                s1PP: "Will We say?",
-                s2PP: "Will You say?",
-                s3PP: "Will They say?"
+                s1PS: "will I say?",
+                s2PS: "will You say?",
+                s3PSm: "will He say?",
+                s3PSf: "will She say?",
+                s3PSi: "will It say?",
+                s1PP: "will We say?",
+                s2PP: "will You say?",
+                s3PP: "will They say?"
             }			
         }				
     },			
@@ -548,14 +548,14 @@ var verbs = {
                 s3PP: "are They arriving?"
             },			
             Future: {			
-                s1PS: "Will I arrive?",
-                s2PS: "Will You arrive?",
-                s3PSm: "Will He arrive?",
-                s3PSf: "Will She arrive?",
-                s3PSi: "Will It arrive?",
-                s1PP: "Will We arrive?",
-                s2PP: "Will You arrive?",
-                s3PP: "Will They arrive?"
+                s1PS: "will I arrive?",
+                s2PS: "will You arrive?",
+                s3PSm: "will He arrive?",
+                s3PSf: "will She arrive?",
+                s3PSi: "will It arrive?",
+                s1PP: "will We arrive?",
+                s2PP: "will You arrive?",
+                s3PP: "will They arrive?"
             }			
         }				
     },					
@@ -676,14 +676,14 @@ var verbs = {
                 s3PP: "are They coming?"
             },			
             Future: {			
-                s1PS: "Will I come?",
-                s2PS: "Will You come?",
-                s3PSm: "Will He come?",
-                s3PSf: "Will She come?",
-                s3PSi: "Will It come?",
-                s1PP: "Will We come?",
-                s2PP: "Will You come?",
-                s3PP: "Will They come?"
+                s1PS: "will I come?",
+                s2PS: "will You come?",
+                s3PSm: "will He come?",
+                s3PSf: "will She come?",
+                s3PSi: "will It come?",
+                s1PP: "will We come?",
+                s2PP: "will You come?",
+                s3PP: "will They come?"
             }			
         }				
     },					
@@ -804,14 +804,14 @@ var verbs = {
                 s3PP: "are They playing?"
             },			
             Future: {			
-                s1PS: "Will I play?",
-                s2PS: "Will You play?",
-                s3PSm: "Will He play?",
-                s3PSf: "Will She play?",
-                s3PSi: "Will It play?",
-                s1PP: "Will We play?",
-                s2PP: "Will You play?",
-                s3PP: "Will They play?"
+                s1PS: "will I play?",
+                s2PS: "will You play?",
+                s3PSm: "will He play?",
+                s3PSf: "will She play?",
+                s3PSi: "will It play?",
+                s1PP: "will We play?",
+                s2PP: "will You play?",
+                s3PP: "will They play?"
             }			
         }				
     },					
@@ -933,14 +933,14 @@ var verbs = {
                 s3PP: "are They walking?"
             },			
             Future: {			
-                s1PS: "Will I walk?",
-                s2PS: "Will You walk?",
-                s3PSm: "Will He walk?",
-                s3PSf: "Will She walk?",
-                s3PSi: "Will It walk?",
-                s1PP: "Will We walk?",
-                s2PP: "Will You walk?",
-                s3PP: "Will They walk?"
+                s1PS: "will I walk?",
+                s2PS: "will You walk?",
+                s3PSm: "will He walk?",
+                s3PSf: "will She walk?",
+                s3PSi: "will It walk?",
+                s1PP: "will We walk?",
+                s2PP: "will You walk?",
+                s3PP: "will They walk?"
             }			
         }				
     },	
@@ -1061,14 +1061,14 @@ var verbs = {
                 s3PP: "Are They running?"
             },			
             Future: {			
-                s1PS: "Will I run?",
-                s2PS: "Will You run?",
-                s3PSm: "Will He run?",
-                s3PSf: "Will She run?",
-                s3PSi: "Will It run?",
-                s1PP: "Will We run?",
-                s2PP: "Will You run?",
-                s3PP: "Will They run?"
+                s1PS: "will I run?",
+                s2PS: "will You run?",
+                s3PSm: "will He run?",
+                s3PSf: "will She run?",
+                s3PSi: "will It run?",
+                s1PP: "will We run?",
+                s2PP: "will You run?",
+                s3PP: "will They run?"
             }			
         }				
     }
