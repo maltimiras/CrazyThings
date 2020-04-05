@@ -287,9 +287,9 @@ var verbs = {
                 s3PSm: "Is he having?",
                 s3PSf: "Is she having?",
                 s3PSi: "Is it having?",
-                s1PP: "Are he having?",
-                s2PP: "Are he having?",
-                s3PP: "Are he having?"
+                s1PP: "Are we having?",
+                s2PP: "Are you having?",
+                s3PP: "Are they having?"
             },			
             Future: {			
                 s1PS: "will I have?",
