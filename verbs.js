@@ -1,5 +1,6 @@
 var contractions = [
     ["’","'"],
+    ["’","'"],
     ["are not","aren't"],
     ["is not","isn't"],
     ["do not","don't"],
