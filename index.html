@@ -33,6 +33,11 @@
             display: inline; 
         }
 
+        .GameSelector input[type="checkbox"] {
+            width: 2vw;
+            height: 1.8vw;
+        }
+
         .verbblock {
             margin:0 3vw 0 3vw;
             display: inline-block;
@@ -71,9 +76,26 @@
             display:inline;   
         }
         .form {
+            display: inline-block;
             color:yellowgreen; 
             display:inline;   
         }
+
+        div .answerform {
+            margin-top:2vw;
+            overflow:auto;
+        }
+
+        #tanswer {
+            float: left;
+            width:65vw;
+        }
+        #banswer {
+            width:27vw;
+            float: right;
+            margin:auto;
+        }
+
     </style>
     <body>
         <div id="header">
@@ -425,7 +447,7 @@
 
         function buildForm(question) {
             prnt(question);
-            prnt("<input type='text' id='tanswer' onkeypress='checkEnter()' autofocus><button id='banswer' onclick='checkAnswer()'>Check</button>");
+            prnt("<div class='answerform'><input type='text' id='tanswer' onkeypress='checkEnter()' autofocus><button id='banswer' onclick='checkAnswer()'>Check</button></div>");
             document.getElementById("tanswer").select();
         }
 
