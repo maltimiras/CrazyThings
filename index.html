@@ -108,6 +108,8 @@
     <script src="serialize-0.2.min.js"></script>
     <script src="verbs.js"></script>
     <script src="verbs-cat.js"></script>
+    <script src="verbs-cat.js"></script>
+    <script src="simpleGoogleSheetsConnection1-0.js"></script>
     <script>
         var users = {
             Guillem:"Guillem.png",
@@ -152,7 +154,6 @@
               str=str.replace(contractions[i][0],contractions[i][1]);
             }
             return str;
-            //return str.replace("i'm","i am").replace("are not","aren't").replace("is not","isn't").replace("do not","don't").replace("did not","didn't").replace("does not","doesn't").replace("will not","won't").replace("have not","haven't").replace("has not","hasn't").replace("had not","hadn't");
         }
 
         // Gestio Verbs
@@ -168,6 +169,8 @@
         var translation="";
         var score =0;
         var total =0;
+
+        var DB = new GoogleConnection("https://script.google.com/macros/s/AKfycbxDyKbQsSyaVsLhGQr54gkzLKNobMEKAHu8OfKINEkISHrfImg/exec");
 
         // Gestio Impresió.
         function prnt(text,id){ 
@@ -331,10 +334,6 @@
         //"<h2>__<h2>","<h3>__<h3>"
         function prntVerb(verb) {
             var html=prntTreeFormat(verbs[verb],["<p><li>__</li></p>","","<p><h2>__</h2></p>","<div class='verbblock'><p><h1>__</h1></p>"],["__","__","__","__</div>"],3);
-            //alert(html);
-            /*verbs[verb].Affirmative
-            verbs[verb].Negative
-            verbs[verb].Interrogative*/
             return html;
         }
 
@@ -360,9 +359,6 @@
               }
               //prnt(lcheckboxes[i].id+ " "+ lcheckboxes[i].name);
             }
-            //prnt(selVerbs.slice());
-            //prnt(selForms.slice());
-            //prnt(selTenses.slice());
             setTimeout(QuestionAnswers,100);
         }
 
@@ -398,41 +394,6 @@
             setTimeout(GameSelectors,100);
         }
 
-        function formCreate(formid,lfields) {
-            var strForm="<form id='"+formid+"' style='display:none'>";
-            //strForm+="<input id='b"+formid+"' type='submit' value='Submit'>";
-            for (var field in lfields) {
-              strForm+="<input type='text' id='"+formid+lfields[field]+"' name='"+lfields[field]+"'>";    
-            } 
-            strForm+="</form>";
-            prnt(strForm);
-        }
-
-        function formSubmit(formid) {
-            //#degug alert("formSubmit:");
-            var http = new XMLHttpRequest();
-            //var params = "user=Guillem&verb=ToSay&form=Interrogative&tense=PresentContinous&subject=s3PSm&result=true";
-            var params = serialize(document.getElementById(formid));
-            http.open("GET", "https://script.google.com/macros/s/AKfycbxDyKbQsSyaVsLhGQr54gkzLKNobMEKAHu8OfKINEkISHrfImg/exec"+"?"+params, true);
-            http.setRequestHeader("Content-type","application/x-www-form-urlencoded");
-            //var params = "search=" + "user=Guillem&verb=ToSay&form=Interrogative&tense=PresentContinous&subject=s3PSm&result=true";
-             // probably use document.getElementById(...).value
-            http.send(null);
-            /*#degug http.onload = function() {
-                alert(http.responseText);
-            }*/
-        }
-
-        function formPutValue(formid,values) {
-            //#degug alert(values);
-            var sskeys=Object.keys(values);
-            //#degug alert(sskeys);
-            for (var key in sskeys) {
-                var input = document.getElementById(formid+sskeys[key]);
-                input.value=values[sskeys[key]];   
-            }
-        }
-
         function buildQuestion() {
             verb=rndkeysOnList(verbs,selVerbs);
             form=rndkeysOnList(verbs[verb],selForms);
@@ -451,8 +412,6 @@
             document.getElementById("tanswer").select();
         }
 
-        //onkeypress='checkEnter()'
-
         function checkEnter() {
             try {
                 if (event.keyCode === 13) {
@@ -461,9 +420,9 @@
             } catch {}
         }
 
+ 
         function checkAnswer() {
             try {
-                //#degug alert("checkAnswer");
                 var secs = 3000;
                 var ipad = document.getElementById("tanswer").value;
                 answer = strClean(strUniform(answer.toLowerCase().trim()));
@@ -471,19 +430,13 @@
                 document.getElementById("tanswer").style.display = 'none';
                 document.getElementById("banswer").style.display = 'none';
                 if (entered==answer) {
-                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered","ipad"]);
-                    //#degug alert("1formCreate");
-                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true,answer:answer,answered:entered,ipad:ipad});
-                    formSubmit("result"+total);
+                    DB.writeValuePairs("Sheet1",{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:true,answer:answer,answered:entered,ipad:ipad});
                     prnt("Well done<br>");
                     prnt('<font color="green"><B>Correct: </B>'+entered+'</font>');
                     prnt('<font color="blue"><B>Translation: </B>'+translation+'</font>');
                     score+=1;
                 }else{
-                    formCreate("result"+total,["user","verb","form","tense","subject","result","answer","answered","ipad"]);
-                    //#degug alert("2formCreate"+currentuser);
-                    formPutValue("result"+total,{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false,answer:answer,answered:entered,ipad:ipad});
-                    formSubmit("result"+total);
+                    DB.writeValuePairs("Sheet1",{user:currentuser,verb:verb,form:form,tense:tense,subject:subject,result:false,answer:answer,answered:entered,ipad:ipad});
                     secs = 6000;
                     prnt('<font color="red"><B>Incorrect: </B>'+entered+'</font>');
                     prnt('<font color="green"><B>Correct answer was: </B>'+answer+'</font>');
