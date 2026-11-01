@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Demo Recorder · Recordings</title>
+  <style>
+    :root { --b: #e5e7eb; --m: #6b7280; --p: #4f46e5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.45 system-ui, -apple-system, sans-serif; color: #111827; background: #f8fafc; display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
+    aside { border-right: 1px solid var(--b); background: #fff; overflow: auto; }
+    aside h1 { font-size: 15px; margin: 0; padding: 16px; border-bottom: 1px solid var(--b); }
+    .sess { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+    .sess:hover { background: #f8fafc; }
+    .sess.on { background: #eef2ff; }
+    .sess b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sess small { color: var(--m); }
+    main { overflow: auto; padding: 24px 32px; }
+    .empty { color: var(--m); padding: 60px; text-align: center; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    input[type=text], select, textarea { font: inherit; border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 10px; background: #fff; }
+    #title { font-size: 20px; font-weight: 600; width: 100%; max-width: 640px; border-color: transparent; padding-left: 4px; }
+    #title:hover, #title:focus { border-color: #d1d5db; }
+    button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
+    button.primary { background: var(--p); border-color: var(--p); color: #fff; font-weight: 600; }
+    button.danger { color: #b91c1c; }
+    button:disabled { opacity: .5; cursor: default; }
+    .card { background: #fff; border: 1px solid var(--b); border-radius: 12px; padding: 16px; margin: 16px 0; }
+    .muted { color: var(--m); font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 8px 6px; border-top: 1px solid #f1f5f9; vertical-align: top; }
+    td.n { color: var(--m); width: 36px; font-variant-numeric: tabular-nums; }
+    td.t { width: 90px; }
+    .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: #334155; text-transform: uppercase; letter-spacing: .03em; }
+    .tag.click { background: #eef2ff; color: #4338ca; } .tag.type { background: #ecfdf5; color: #047857; }
+    .tag.key { background: #fef3c7; color: #92400e; } .tag.scroll { background: #f0f9ff; color: #0369a1; }
+    .desc { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td.note textarea { width: 100%; min-width: 220px; height: 34px; resize: vertical; font-size: 13px; }
+    td.x { width: 40px; text-align: right; }
+    td.x button { padding: 4px 9px; color: var(--m); }
+    #progress { font-size: 13px; color: var(--m); }
+    label.opt { display: flex; gap: 6px; align-items: center; }
+  </style>
+</head>
+<body>
+  <aside>
+    <h1>Recordings</h1>
+    <div id="sessions"></div>
+  </aside>
+  <main id="main">
+    <div class="empty">Select a recording, or start one from the toolbar button.</div>
+  </main>
+  <template id="editor">
+    <input id="title" type="text" spellcheck="false">
+    <div class="muted" id="meta"></div>
+    <div class="card">
+      <div class="row">
+        <button id="preview">▶ Preview</button>
+        <button id="export" class="primary">⬇ Export HTML</button>
+        <label class="opt"><input type="checkbox" id="inline" checked> Embed images &amp; fonts (works offline)</label>
+        <label class="opt">Mode <select id="mode"><option value="autoplay">Autoplay</option><option value="guided">Guided (click to advance)</option></select></label>
+        <label class="opt"><input type="checkbox" id="frame" checked> Browser frame</label>
+        <span style="flex:1"></span>
+        <button id="delete" class="danger">Delete recording</button>
+      </div>
+      <div id="progress"></div>
+    </div>
+    <div class="card">
+      <div class="muted" style="margin-bottom:8px">Steps — delete noise, add captions (shown as callouts during playback).</div>
+      <table><tbody id="steps"></tbody></table>
+    </div>
+  </template>
+  <script src="review.js" type="module"></script>
+</body>
+</html>
