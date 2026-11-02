@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pipeline · Acme CRM</title>
+  <link rel="stylesheet" href="app.css">
+  <style>.status { padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #e0e7ff; color: #3730a3; }</style>
+</head>
+<body>
+  <nav>
+    <div class="logo"><img src="logo.svg" alt="">Acme CRM</div>
+    <a href="#" class="on">Pipeline</a><a href="#">Contacts</a><a href="#">Reports</a>
+  </nav>
+  <main>
+    <header>
+      <h1>Pipeline</h1>
+      <input type="search" id="search" placeholder="Search deals…">
+      <button class="btn" id="new">+ New deal</button>
+    </header>
+    <div class="kpis">
+      <div class="kpi">Open deals<b id="k-count">3</b></div>
+      <div class="kpi">Pipeline value<b id="k-value">$184,500</b></div>
+      <div class="kpi">Owner<user-chip name="Jane Cooper"></user-chip></div>
+    </div>
+    <table>
+      <thead><tr><th>Deal</th><th>Company</th><th>Amount</th><th>Stage</th></tr></thead>
+      <tbody id="rows">
+        <tr><td>Platform renewal</td><td>Globex Corporation</td><td>$96,000</td><td><span class="status">Negotiation</span></td></tr>
+        <tr><td>Analytics add-on</td><td>Initech</td><td>$42,500</td><td><span class="status">Proposal</span></td></tr>
+        <tr><td>Pilot expansion</td><td>Umbrella Corp</td><td>$46,000</td><td><span class="status">Discovery</span></td></tr>
+      </tbody>
+    </table>
+    <div class="activity" id="activity"></div>
+  </main>
+  <div class="modal-bg" id="modal">
+    <form class="modal" id="form">
+      <h3 style="margin-top:0">New deal</h3>
+      <label class="field">Deal name<input name="deal" required></label>
+      <label class="field">Company<input name="company" required></label>
+      <label class="field">Amount<input name="amount" placeholder="$0"></label>
+      <button class="btn" type="submit">Create deal</button>
+    </form>
+  </div>
+  <script>
+    // CSS-in-JS style rule inserted through the CSSOM (no text content)
+    const s = document.createElement('style'); document.head.appendChild(s);
+    s.sheet.insertRule('.kpi b { color: #4338ca; }');
+    customElements.define('user-chip', class extends HTMLElement {
+      connectedCallback() {
+        const r = this.attachShadow({ mode: 'open' });
+        r.innerHTML = `<style>span{display:inline-flex;gap:6px;align-items:center;font-weight:600;font-size:16px;margin-top:6px}i{width:22px;height:22px;border-radius:50%;background:#f59e0b;display:inline-block}</style><span><i></i>${this.getAttribute('name')}</span>`;
+      }
+    });
+    const act = document.getElementById('activity');
+    for (let i = 1; i <= 20; i++) act.insertAdjacentHTML('beforeend', `<div>Activity #${i}: Jane Cooper emailed Globex Corporation</div>`);
+    const modal = document.getElementById('modal');
+    document.getElementById('new').onclick = () => modal.classList.add('open');
+    document.getElementById('form').onsubmit = (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      document.getElementById('rows').insertAdjacentHTML('afterbegin',
+        `<tr><td>${f.get('deal')}</td><td>${f.get('company')}</td><td>${f.get('amount')}</td><td><span class="status">New</span></td></tr>`);
+      document.getElementById('k-count').textContent = document.querySelectorAll('#rows tr').length;
+      modal.classList.remove('open');
+      e.target.reset();
+      setTimeout(() => {
+        document.body.insertAdjacentHTML('beforeend', '<div class="toast">Deal created</div>');
+      }, 300);
+    };
+    document.getElementById('search').oninput = (e) => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('#rows tr').forEach(tr => tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none');
+    };
+  </script>
+</body>
+</html>

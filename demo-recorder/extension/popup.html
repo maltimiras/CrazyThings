@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font: 13px/1.4 system-ui, sans-serif; margin: 0; width: 280px; color: #111827; }
+    header { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 8px; }
+    header b { font-size: 14px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; }
+    .rec .dot { background: #dc2626; animation: p 1.2s infinite; }
+    .paused .dot { background: #d97706; }
+    @keyframes p { 50% { opacity: .3; } }
+    main { padding: 12px 14px; display: grid; gap: 8px; }
+    button { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
+    button.primary { background: #4f46e5; color: #fff; border-color: #4f46e5; font-weight: 600; }
+    button.danger { background: #dc2626; color: #fff; border-color: #dc2626; font-weight: 600; }
+    button:hover { filter: brightness(.96); }
+    .muted { color: #6b7280; font-size: 12px; }
+    .err { color: #b91c1c; font-size: 12px; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header id="hdr"><span class="dot"></span><b>Demo Recorder</b><span id="status" class="muted"></span></header>
+  <main>
+    <div id="idle">
+      <div style="display:grid;gap:8px">
+        <button id="start" class="primary">● Start recording this tab</button>
+        <div class="muted">Clicks, typing, keyboard shortcuts, scrolling and page changes are captured. Password values are masked.</div>
+      </div>
+    </div>
+    <div id="active" hidden>
+      <div style="display:grid;gap:8px">
+        <div class="muted" id="counter"></div>
+        <button id="pause">❚❚ Pause</button>
+        <button id="stop" class="danger">■ Stop &amp; review</button>
+      </div>
+    </div>
+    <button id="library">Open recordings</button>
+    <div id="err" class="err"></div>
+  </main>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

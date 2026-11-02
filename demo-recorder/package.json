@@ -1,0 +1,11 @@
+{
+  "name": "demo-recorder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension that records web-app demos into self-contained, editable HTML",
+  "scripts": {
+    "demo": "node tools/demo.mjs",
+    "test": "node test/e2e.mjs"
+  }
+}

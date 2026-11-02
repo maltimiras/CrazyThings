@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Demo Recorder",
+  "version": "0.1.0",
+  "description": "Record clicks, typing, scrolling and DOM changes on any web app and export a self-contained interactive HTML demo.",
+  "permissions": ["storage", "unlimitedStorage", "tabs", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Demo Recorder" },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
