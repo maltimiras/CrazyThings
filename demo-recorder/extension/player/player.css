@@ -1,3 +1,5 @@
+/* Registered so it can be animated together with the zoom: keeps the cursor's on-screen size constant. */
+@property --dp-scale { syntax: '<number>'; inherits: true; initial-value: 1; }
 html, body { margin: 0; height: 100%; }
 body { background: #0f1117; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; color: #e5e7eb; }
 #demo-root { position: fixed; inset: 0; display: flex; flex-direction: column; }
@@ -13,7 +15,9 @@ body { background: #0f1117; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "S
 .dp-viewport { position: relative; overflow: hidden; background: #fff; }
 .dp-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; visibility: hidden; background: #fff; }
 .dp-frame.on { visibility: visible; }
+.dp-zoom { position: absolute; inset: 0; transform-origin: 0 0; transition-property: transform, --dp-scale; transition-timing-function: cubic-bezier(.45,.05,.25,1); will-change: transform; }
 .dp-overlay { position: absolute; inset: 0; pointer-events: none; }
+.dp-hud { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
 
 .dp-cursor { position: absolute; left: 0; top: 0; width: 28px; height: 28px; margin: -3px 0 0 -5px; transition-property: transform; transition-timing-function: cubic-bezier(.45,.05,.25,1); z-index: 5; will-change: transform; }
 .dp-cursor svg { width: calc(26px / var(--dp-scale, 1)); height: calc(26px / var(--dp-scale, 1)); filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); transition: transform .12s; transform-origin: 4px 3px; }

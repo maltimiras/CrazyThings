@@ -65,7 +65,21 @@ async function renderEditor(id) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td class="n">${i + 1}</td><td class="t"><span class="tag ${st.type}">${st.type}</span></td>
       <td><div class="desc"></div></td><td class="note"><textarea placeholder="Caption (optional)"></textarea></td>
-      <td class="x"><button title="Delete step">✕</button></td>`;
+      <td class="z"></td><td class="x"><button title="Delete step">✕</button></td>`;
+    if (st.type === 'click' || st.type === 'type') {
+      // Per-step zoom: '' = follow the export setting, 'off' = never zoom this step, number = custom level.
+      const sel = document.createElement('select');
+      sel.title = 'Zoom for this step';
+      sel.innerHTML = '<option value="">Zoom: default</option><option value="off">Zoom: off</option>' +
+        '<option value="1.5">Zoom: 1.5×</option><option value="2">Zoom: 2×</option><option value="2.5">Zoom: 2.5×</option>';
+      sel.value = st.zoom === false ? 'off' : typeof st.zoom === 'number' ? String(st.zoom) : '';
+      sel.onchange = async () => {
+        if (sel.value === '') delete st.zoom;
+        else st.zoom = sel.value === 'off' ? false : Number(sel.value);
+        await db.putStep(st);
+      };
+      tr.querySelector('td.z').appendChild(sel);
+    }
     tr.querySelector('.desc').textContent = describeStep(st);
     tr.querySelector('.desc').title = describeStep(st);
     const ta = tr.querySelector('textarea');

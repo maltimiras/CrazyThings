@@ -179,6 +179,65 @@ try {
   assert(ui.playing && ui.cover, 'autoStart plays without a Play button');
   assert(ui.controls === 'none' && ui.bar === 'none' && ui.light, 'control bar and browser frame hidden, light background');
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- auto-zoom, switched off for the first click through the per-step selector
+  await ext.check('[data-setting=zoom]');
+  await ext.selectOption('[data-setting=zoomLevel]', '2.2');
+  await ext.selectOption('#steps td.z select >> nth=0', 'off');
+  await sleep(300);
+  const zhtml = await ext.evaluate(async (id) => {
+    const { buildDemoHtml } = await import('./lib/build.js');
+    return (await buildDemoHtml(id, { inline: false })).html;
+  }, sessionId);
+  const file3 = path.join(OUT, 'zoom.demo.html');
+  fs.writeFileSync(file3, zhtml);
+  const p3 = await ctx.newPage();
+  p3.on('pageerror', (e) => errors.push('zoom: ' + e.message));
+  await p3.goto('file://' + file3 + '?autoplay=0&speed=1');
+  await p3.bringToFront(); // background tabs throttle requestAnimationFrame
+  await p3.waitForFunction(() => window.demoPlayer);
+  const zinfo = await p3.evaluate(() => {
+    const st = window.demoPlayer.steps;
+    const clicks = st.map((s, i) => (s.type === 'click' ? i : -1)).filter((i) => i >= 0);
+    return { off: clicks[0], offZoom: st[clicks[0]].zoom, on: clicks[1], change: st.findIndex((s, i) => s.type === 'change' && i > clicks[1]), };
+  });
+  assert(zinfo.offZoom === false, 'per-step zoom off saved into the export');
+  // Run one step and record the largest zoom scale seen while it is the current step.
+  const maxScale = (i) => p3.evaluate((i) => new Promise((res) => {
+    const z = document.querySelector('.dp-zoom');
+    let max = 1;
+    window.demoPlayer.jump(i, true);
+    const t0 = performance.now();
+    (function tick() {
+      if (window.demoPlayer.index === i) max = Math.max(max, new DOMMatrix(getComputedStyle(z).transform).a);
+      if (window.demoPlayer.index !== i && performance.now() - t0 > 200) { window.demoPlayer.pause(); return res(+max.toFixed(2)); }
+      if (performance.now() - t0 > 8000) { window.demoPlayer.pause(); return res(+max.toFixed(2)); }
+      requestAnimationFrame(tick);
+    })();
+  }), i);
+  const sOn = await maxScale(zinfo.on);
+  await p3.evaluate((i) => { window.demoPlayer.jump(i, true); }, zinfo.on);
+  await sleep(1100);
+  await p3.screenshot({ path: path.join(OUT, 'zoom-in.png') });
+  await p3.evaluate(() => window.demoPlayer.pause());
+  const sOff = await maxScale(zinfo.off);
+  assert(Math.abs(sOn - 2.2) < 0.05, `click step zooms to 2.2× (saw ${sOn}×)`);
+  assert(sOff === 1, `step with zoom off stays at 1× (saw ${sOff}×)`);
+  // Play from the zoomed click into the following page update; record the lowest scale during the update.
+  const afterChange = await p3.evaluate((i) => new Promise((res) => {
+    const z = document.querySelector('.dp-zoom');
+    let min = 99;
+    window.demoPlayer.jump(i - 1, true);
+    const t0 = performance.now();
+    (function tick() {
+      const k = window.demoPlayer.index;
+      if (k === i) min = Math.min(min, new DOMMatrix(getComputedStyle(z).transform).a);
+      if (k > i || performance.now() - t0 > 10000) { window.demoPlayer.pause(); return res(+min.toFixed(3)); }
+      requestAnimationFrame(tick);
+    })();
+  }), zinfo.change);
+  assert(Math.abs(afterChange - 1) < 0.01, `zooms back out on a page update (scale ${afterChange})`);
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
   console.log('\nAll good. Screenshots in', OUT);
 } finally {
   await ctx.close();

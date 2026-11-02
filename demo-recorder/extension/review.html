@@ -35,6 +35,8 @@
     .tag.key { background: #fef3c7; color: #92400e; } .tag.scroll { background: #f0f9ff; color: #0369a1; }
     .desc { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     td.note textarea { width: 100%; min-width: 220px; height: 34px; resize: vertical; font-size: 13px; }
+    td.z { width: 120px; }
+    td.z select { font-size: 12px; padding: 5px 6px; width: 112px; }
     td.x { width: 40px; text-align: right; }
     td.x button { padding: 4px 9px; color: var(--m); }
     #progress { font-size: 13px; color: var(--m); }
@@ -85,6 +87,9 @@
           <label class="chk"><input type="checkbox" data-setting="cursor"> Mouse cursor &amp; click effects</label>
           <label class="chk" title="Overlay like “Alt + K” when a key or shortcut was pressed"><input type="checkbox" data-setting="showKeys"> Key presses (e.g. Alt + K)</label>
           <label class="chk"><input type="checkbox" data-setting="captions"> Captions</label>
+          <label class="chk" title="The view zooms in on each click and typing step. Turn it off for single steps in the list below."><input type="checkbox" data-setting="zoom"> Auto-zoom on clicks &amp; typing</label>
+          <label><span>Zoom level</span>
+            <select data-setting="zoomLevel"><option value="1.5">1.5×</option><option value="1.8">1.8×</option><option value="2.2">2.2×</option></select></label>
           <label><span>Background</span>
             <select data-setting="background"><option value="dark">Dark</option><option value="light">Light</option><option value="none">None (for embedding)</option></select></label>
         </fieldset>

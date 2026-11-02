@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline · Acme CRM</title>
 <style id="demo-player-css">
+/* Registered so it can be animated together with the zoom: keeps the cursor's on-screen size constant. */
+@property --dp-scale { syntax: '<number>'; inherits: true; initial-value: 1; }
 html, body { margin: 0; height: 100%; }
 body { background: #0f1117; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; color: #e5e7eb; }
 #demo-root { position: fixed; inset: 0; display: flex; flex-direction: column; }
@@ -20,7 +22,9 @@ body { background: #0f1117; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "S
 .dp-viewport { position: relative; overflow: hidden; background: #fff; }
 .dp-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; visibility: hidden; background: #fff; }
 .dp-frame.on { visibility: visible; }
+.dp-zoom { position: absolute; inset: 0; transform-origin: 0 0; transition-property: transform, --dp-scale; transition-timing-function: cubic-bezier(.45,.05,.25,1); will-change: transform; }
 .dp-overlay { position: absolute; inset: 0; pointer-events: none; }
+.dp-hud { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
 
 .dp-cursor { position: absolute; left: 0; top: 0; width: 28px; height: 28px; margin: -3px 0 0 -5px; transition-property: transform; transition-timing-function: cubic-bezier(.45,.05,.25,1); z-index: 5; will-change: transform; }
 .dp-cursor svg { width: calc(26px / var(--dp-scale, 1)); height: calc(26px / var(--dp-scale, 1)); filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); transition: transform .12s; transform-origin: 4px 3px; }
@@ -797,7 +801,7 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
   function flag(name, key) {
@@ -811,6 +815,7 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
   flag('frame', 'browserFrame');
   flag('cursor', 'cursor');
   flag('keys', 'showKeys');
+  flag('zoom', 'zoom');
   flag('captions', 'captions');
   if (params.get('bg')) settings.background = params.get('bg');
   if (settings.captions === false) steps.forEach(function (s) { delete s.note; });
@@ -822,10 +827,15 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
       '<div class="dp-window">' +
         '<div class="dp-bar"><div class="dp-dots"><i></i><i></i><i></i></div><div class="dp-url"></div></div>' +
         '<div class="dp-viewport">' +
-          '<iframe class="dp-frame on" sandbox="allow-same-origin" title="demo"></iframe>' +
-          '<iframe class="dp-frame" sandbox="allow-same-origin" title="demo"></iframe>' +
-          '<div class="dp-overlay">' +
-            '<div class="dp-cursor"><svg viewBox="0 0 24 24"><path d="M4 2.5l15.5 9.2-6.9 1.4 4 7.3-3 1.6-4-7.4L4.5 19z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div>' +
+          // .dp-zoom is the "camera": a CSS transform over the live HTML (nothing is rasterized).
+          '<div class="dp-zoom">' +
+            '<iframe class="dp-frame on" sandbox="allow-same-origin" title="demo"></iframe>' +
+            '<iframe class="dp-frame" sandbox="allow-same-origin" title="demo"></iframe>' +
+            '<div class="dp-overlay">' +
+              '<div class="dp-cursor"><svg viewBox="0 0 24 24"><path d="M4 2.5l15.5 9.2-6.9 1.4 4 7.3-3 1.6-4-7.4L4.5 19z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg></div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="dp-hud">' +
             '<div class="dp-callout"></div>' +
             '<div class="dp-keycap"></div>' +
           '</div>' +
@@ -848,6 +858,7 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
   var $ = function (sel) { return root.querySelector(sel); };
   var stage = $('.dp-stage'), win = $('.dp-window'), viewport = $('.dp-viewport'), urlEl = $('.dp-url');
   var frames = root.querySelectorAll('.dp-frame');
+  var zoomEl = $('.dp-zoom');
   var overlay = $('.dp-overlay'), cursorEl = $('.dp-cursor'), callout = $('.dp-callout'), keycap = $('.dp-keycap');
   var cover = $('.dp-cover'), coverBtn = $('.dp-cover button');
   var track = $('.dp-track'), countEl = $('.dp-count'), playBtn = root.querySelector('[data-a=play]');
@@ -876,6 +887,7 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
   var pending = [];
   var waiter = null;
   var cursor = { x: vp.w / 2, y: vp.h / 2 };
+  var zoom = { z: 1, tx: 0, ty: 0 };
 
   // ---------------------------------------------------------------- helpers
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
@@ -938,6 +950,7 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
     var x = (W - vp.w * scale) / 2, y = (H - (vp.h + barH) * scale) / 2;
     win.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
     win.style.setProperty('--dp-scale', scale);
+    zoomEl.style.setProperty('--dp-scale', scale * zoom.z);
   }
   window.addEventListener('resize', fit);
 
@@ -1059,6 +1072,54 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
   }
   function hideHotspot() { if (hotspot) { hotspot.remove(); hotspot = null; } }
 
+  // ---------------------------------------------------------------- zoom
+  // Zoom level for a step: step.zoom === false turns it off for that step, a number overrides
+  // the level, true forces it on; otherwise the global settings.zoom / settings.zoomLevel apply.
+  function zoomLevel(s) {
+    var def = +settings.zoomLevel || 1.8;
+    if (s.zoom === false) return 1;
+    if (typeof s.zoom === 'number') return Math.max(1, s.zoom);
+    if (s.zoom === true) return def;
+    return settings.zoom ? def : 1;
+  }
+
+  // Center (x, y) (iframe coordinates) at zoom z, clamped to the page edges. Returns true if the camera moved.
+  function setZoom(z, x, y, animate) {
+    z = Math.max(1, z || 1);
+    var tx = 0, ty = 0;
+    if (z > 1) {
+      tx = clamp(vp.w / 2 - x * z, vp.w - vp.w * z, 0);
+      ty = clamp(vp.h / 2 - y * z, vp.h - vp.h * z, 0);
+    }
+    // An animated call can be skipped when the camera is already there; a snap always applies,
+    // because a previous zoom animation may still be running on screen.
+    if (animate && Math.abs(z - zoom.z) < 1e-3 && Math.abs(tx - zoom.tx) < 0.5 && Math.abs(ty - zoom.ty) < 0.5) return false;
+    var t = z === 1 ? '' : 'translate(' + tx + 'px,' + ty + 'px) scale(' + z + ')';
+    if (animate) {
+      zoomEl.style.transition = '';
+      zoomEl.style.transitionDuration = (750 / settings.speed) + 'ms';
+      zoomEl.style.transform = t;
+    } else {
+      // Snap: cancel any running zoom animation and apply immediately.
+      zoomEl.style.transition = 'none';
+      if (zoomEl.getAnimations) zoomEl.getAnimations().forEach(function (a) { a.cancel(); });
+      zoomEl.style.transform = t;
+      void zoomEl.offsetWidth;
+    }
+    zoomEl.style.setProperty('--dp-scale', scale * z);
+    zoom = { z: z, tx: tx, ty: ty };
+    return !!animate;
+  }
+
+  // Map a rect from iframe coordinates to (unzoomed) viewport coordinates.
+  function toView(r) {
+    return {
+      left: r.left * zoom.z + zoom.tx, right: r.right * zoom.z + zoom.tx,
+      top: r.top * zoom.z + zoom.ty, bottom: r.bottom * zoom.z + zoom.ty,
+      width: r.width * zoom.z, height: r.height * zoom.z,
+    };
+  }
+
   function showCallout(text, el, withNext) {
     callout.textContent = text;
     if (withNext) {
@@ -1072,7 +1133,7 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
     callout.style.top = '0px';
     var cw = callout.offsetWidth, ch = callout.offsetHeight, gap = 14 / scale, x, y;
     if (el) {
-      var r = el.getBoundingClientRect();
+      var r = toView(el.getBoundingClientRect());
       y = r.bottom + gap;
       if (y + ch > vp.h - 8) y = r.top - gap - ch;
       if (y < 8) y = clamp(r.top + r.height / 2 - ch / 2, 8, vp.h - ch - 8);
@@ -1193,10 +1254,19 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
     var doc = curDoc();
     var el = s.target ? findTarget(doc, s.target) : null;
     var guided = settings.mode === 'guided';
+    // Keep the camera during key presses (they continue the typing); zoom out for everything else.
+    var zoomOut = s.type !== 'click' && s.type !== 'type' && s.type !== 'key' && setZoom(1, 0, 0, true);
+    var stepStart = Date.now();
 
     switch (s.type) {
       case 'click': {
-        if (el) { var p = targetPoint(el, s.x, s.y); await moveCursor(p.x, p.y); }
+        if (el) {
+          var p = targetPoint(el, s.x, s.y);
+          var zc = setZoom(zoomLevel(s), p.x, p.y, true);
+          await Promise.all([moveCursor(p.x, p.y), zc ? sleep(750) : null]);
+        } else {
+          setZoom(1, 0, 0, true);
+        }
         if (guided) {
           if (s.note) showCallout(s.note, el, false);
           await waitForUser(el);
@@ -1212,11 +1282,15 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
       }
       case 'type': {
         if (el) {
+          var c = targetPoint(el, 0.5, 0.5);
+          var zt = setZoom(zoomLevel(s), c.x, c.y, true);
           var r = el.getBoundingClientRect();
           if (cursor.x < r.left || cursor.x > r.right || cursor.y < r.top || cursor.y > r.bottom) {
             var q = targetPoint(el, 0.15, 0.5);
-            await moveCursor(q.x, q.y);
+            await Promise.all([moveCursor(q.x, q.y), zt ? sleep(750) : null]);
             clickFx();
+          } else if (zt) {
+            await sleep(750);
           }
           try { el.focus({ preventScroll: true }); } catch (e) {}
         }
@@ -1253,13 +1327,18 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
       default: // change
         await noteGate(s, el, 450);
     }
+    // Let a zoom-out finish before the next step, so the full page is actually seen.
+    if (zoomOut) {
+      var left = 750 - (Date.now() - stepStart) * settings.speed;
+      if (left > 0) await sleep(left);
+    }
     check(my);
   }
 
   // ---------------------------------------------------------------- transport
   async function play() {
     if (playing || !steps.length) return;
-    if (idx >= steps.length) { idx = 0; pristine = false; placeCursor(vp.w / 2, vp.h / 2); }
+    if (idx >= steps.length) { idx = 0; pristine = false; placeCursor(vp.w / 2, vp.h / 2); setZoom(1, 0, 0, false); }
     playing = true;
     cover.hidden = true;
     updateUI();
@@ -1308,6 +1387,7 @@ input[type="search"], .field input { font: inherit; border: 1px solid rgb(203, 2
     cover.hidden = true;
     updateUI();
     var my = runId;
+    setZoom(1, 0, 0, false);
     await showScreen(steps[idx].screen, true);
     if (my !== runId) return;
     if (resume) play();

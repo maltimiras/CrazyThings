@@ -144,7 +144,7 @@ function cmdInfo(input) {
     else if (s.type === 'key') d = s.key;
     else if (s.type === 'scroll') d = `→ ${s.top}px`;
     else if (s.url) d = s.url;
-    const note = s.note ? `   📝 ${s.note}` : '';
+    const note = (s.zoom === false ? '   [zoom off]' : typeof s.zoom === 'number' ? `   [zoom ${s.zoom}×]` : '') + (s.note ? `   📝 ${s.note}` : '');
     console.log(`${String(s.id).padStart(3)}  ${s.type.padEnd(8)} ${s.screen.padEnd(4)} ${s.target ? s.target.padEnd(5) : '     '} ${d}${note}`);
   }
 }

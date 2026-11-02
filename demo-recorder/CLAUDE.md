@@ -28,8 +28,9 @@ An exported demo is one HTML file with these `<script>` data blocks (none of the
 - `key`: shows a keycap overlay (`key`, e.g. `Escape`, `Ctrl+K`).
 - `scroll`: animates the window (or the target element) to `top`/`left`.
 - Optional on any step: `note` (caption callout), `hold` (ms to pause).
+- Optional on `click`/`type` steps: `zoom`. Use `false` to keep the full page in view for that step, a number (e.g. `2`) for a custom zoom level, or `true` to zoom even when auto-zoom is off globally. Zoom is a CSS transform on the live HTML, so it never affects what you can edit.
 
-**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `autoStart` (play on open, no Play button), `speed`, `loop`, `controls` (bottom control bar), `browserFrame`, `cursor`, `showKeys` (keycap overlay for key presses), `captions`, `background` (`dark` | `light` | `none`). URL overrides: `?mode=guided`, `?autoplay=1`, `?speed=2`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light`.
+**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `autoStart` (play on open, no Play button), `speed`, `loop`, `controls` (bottom control bar), `browserFrame`, `cursor`, `showKeys` (keycap overlay for key presses), `captions`, `background` (`dark` | `light` | `none`), `zoom` (auto-zoom onto clicks and typing) and `zoomLevel` (e.g. `1.8`). URL overrides: `?mode=guided`, `?autoplay=1`, `?speed=2`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light`, `?zoom=1`.
 
 ## Personalization workflow
 
