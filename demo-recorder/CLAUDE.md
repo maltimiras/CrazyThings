@@ -29,7 +29,7 @@ An exported demo is one HTML file with these `<script>` data blocks (none of the
 - `scroll`: animates the window (or the target element) to `top`/`left`.
 - Optional on any step: `note` (caption callout), `hold` (ms to pause).
 
-**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `speed`, `browserFrame`, `cursor`, `loop`. URL overrides: `?mode=guided`, `?speed=2`, `?autoplay=1`, `?frame=0`.
+**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `speed`, `browserFrame`, `cursor`, `showKeys` (keycap overlay for key presses), `loop`. URL overrides: `?mode=guided`, `?speed=2`, `?autoplay=1`, `?frame=0`, `?keys=0`.
 
 ## Personalization workflow
 

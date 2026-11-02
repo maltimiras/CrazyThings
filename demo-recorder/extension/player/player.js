@@ -29,10 +29,12 @@
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
   if (params.get('frame') === '0') settings.browserFrame = false;
+  if (params.get('keys') === '0') settings.showKeys = false;
+  if (params.get('keys') === '1') settings.showKeys = true;
 
   // ---------------------------------------------------------------- DOM
   var root = document.getElementById('demo-root');
@@ -449,6 +451,7 @@
         break;
       }
       case 'key': {
+        if (settings.showKeys === false) { await noteGate(s, el, 150); break; }
         showKey(s.key);
         await noteGate(s, el, 1000);
         hideKey();

@@ -41,12 +41,14 @@ async function renderEditor(id) {
   $('title').onchange = async () => { session.title = $('title').value.trim() || 'Untitled demo'; await db.putSession(session); renderSessions(); };
   $('mode').value = settings.mode;
   $('frame').checked = settings.browserFrame;
+  $('keys').checked = settings.showKeys;
   const saveSettings = async () => {
-    session.settings = { ...settings, mode: $('mode').value, browserFrame: $('frame').checked };
+    session.settings = { ...settings, mode: $('mode').value, browserFrame: $('frame').checked, showKeys: $('keys').checked };
     await db.putSession(session);
   };
   $('mode').onchange = saveSettings;
   $('frame').onchange = saveSettings;
+  $('keys').onchange = saveSettings;
 
   const [steps, screens] = await Promise.all([db.getSteps(id), db.getScreens(id)]);
   const bytes = screens.reduce((n, s) => n + s.html.length, 0);

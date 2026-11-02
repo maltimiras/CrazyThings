@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS = {
   speed: 1,
   browserFrame: true,    // draw a fake browser window with the URL bar
   cursor: true,
+  showKeys: true,       // show a keycap overlay for key presses (Enter, Esc, Alt+K…)
   loop: false,
 };
 
