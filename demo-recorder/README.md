@@ -19,7 +19,7 @@ record in Chrome  ──►  review & caption  ──►  export demo.html  ─�
 1. Open your app in a normal tab and set the window to the size you want the demo to be.
 2. Click the toolbar icon, then **Start recording this tab**. A small `● REC` badge appears in the bottom-left of the page.
 3. Do the demo. Each click, typing session, special key (`Enter`, `Esc`, `Tab`, arrows, `Ctrl/⌘+…`), scroll, and settled DOM change becomes a step. Page navigations are followed automatically.
-4. Click **Stop & review**. The review page opens: delete noisy steps, add captions, choose autoplay or guided mode, turn the key-press overlay (e.g. “Alt + K”) on or off, then **Preview** or **Export HTML**.
+4. Click **Stop & review**. The review page opens: delete noisy steps, add captions, set the export options (autoplay or guided, start automatically, speed, loop, control bar, browser frame, cursor, key-press overlay, captions, background), then **Preview** or **Export HTML**.
 
 Leave **Embed images & fonts** on (the default) so the file works offline and for viewers who aren't logged in.
 
@@ -35,7 +35,7 @@ Leave **Embed images & fonts** on (the default) so the file works offline and fo
 
 ### Player controls
 
-Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options: `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?frame=0` (hides the browser frame), `?keys=0` (hides the key-press overlay). `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
+Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options (they override the export settings): `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
 
 ## Personalize with Claude Code
 

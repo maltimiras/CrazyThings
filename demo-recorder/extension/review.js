@@ -39,16 +39,22 @@ async function renderEditor(id) {
 
   $('title').value = session.title;
   $('title').onchange = async () => { session.title = $('title').value.trim() || 'Untitled demo'; await db.putSession(session); renderSessions(); };
-  $('mode').value = settings.mode;
-  $('frame').checked = settings.browserFrame;
-  $('keys').checked = settings.showKeys;
-  const saveSettings = async () => {
-    session.settings = { ...settings, mode: $('mode').value, browserFrame: $('frame').checked, showKeys: $('keys').checked };
-    await db.putSession(session);
-  };
-  $('mode').onchange = saveSettings;
-  $('frame').onchange = saveSettings;
-  $('keys').onchange = saveSettings;
+  // Export options: every [data-setting] control maps to session.settings[key].
+  for (const el of main.querySelectorAll('[data-setting]')) {
+    const key = el.dataset.setting;
+    if (el.type === 'checkbox') el.checked = !!settings[key];
+    else el.value = String(settings[key]);
+    el.onchange = async () => {
+      const def = DEFAULT_SETTINGS[key];
+      settings[key] = el.type === 'checkbox' ? el.checked
+        : typeof def === 'boolean' ? el.value === 'true'
+        : typeof def === 'number' ? Number(el.value) : el.value;
+      session.settings = { ...settings };
+      await db.putSession(session);
+    };
+  }
+  $('inline').checked = session.exportInline !== false;
+  $('inline').onchange = async () => { session.exportInline = $('inline').checked; await db.putSession(session); };
 
   const [steps, screens] = await Promise.all([db.getSteps(id), db.getScreens(id)]);
   const bytes = screens.reduce((n, s) => n + s.html.length, 0);

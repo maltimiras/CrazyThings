@@ -51,3 +51,11 @@ body { background: #0f1117; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "S
 .dp-seg.cur { background: #a5b4fc; }
 .dp-count { font-variant-numeric: tabular-nums; color: #9ca3af; min-width: 64px; text-align: center; font-size: 13px; }
 .dp-title { color: #9ca3af; font-size: 13px; max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* export options */
+.dp-nocontrols .dp-controls { display: none; }
+.dp-bg-light body { background: #eef0f4; }
+.dp-bg-light .dp-stage { background: radial-gradient(1200px 600px at 50% 0%, #ffffff 0%, #e5e7ef 75%); }
+.dp-bg-light .dp-window { box-shadow: 0 24px 60px rgba(15,23,42,.18), 0 0 0 1px rgba(15,23,42,.08); }
+.dp-bg-none body, .dp-bg-none .dp-stage { background: #fff; }
+.dp-bg-none .dp-window { box-shadow: 0 0 0 1px rgba(15,23,42,.10); }

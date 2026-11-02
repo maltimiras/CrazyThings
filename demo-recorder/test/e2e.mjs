@@ -142,6 +142,43 @@ try {
   });
   assert(typed.includes('Stark Industries'), 'final screen shows created deal');
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- export options set through the review page UI
+  await ext.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
+  await ext.waitForSelector('[data-setting=controls]');
+  await ext.selectOption('[data-setting=autoStart]', 'true');
+  await ext.selectOption('[data-setting=background]', 'light');
+  await ext.selectOption('[data-setting=speed]', '2');
+  for (const k of ['controls', 'browserFrame', 'showKeys']) await ext.uncheck(`[data-setting=${k}]`);
+  await ext.check('[data-setting=loop]');
+  await sleep(300);
+  const opt = await ext.evaluate(async (id) => {
+    const { buildDemoHtml } = await import('./lib/build.js');
+    const { html, data } = await buildDemoHtml(id, { inline: false });
+    return { html, settings: data.manifest.settings };
+  }, sessionId);
+  const s2 = opt.settings;
+  assert(s2.autoStart === true && s2.background === 'light' && s2.speed === 2 && s2.loop === true &&
+    s2.controls === false && s2.browserFrame === false && s2.showKeys === false && s2.cursor === true,
+    'review-page options saved into the export ' + JSON.stringify(s2));
+  const file2 = path.join(OUT, 'options.demo.html');
+  fs.writeFileSync(file2, opt.html);
+  const p2 = await ctx.newPage();
+  p2.on('pageerror', (e) => errors.push('options: ' + e.message));
+  await p2.goto('file://' + file2);
+  await p2.waitForFunction(() => window.demoPlayer);
+  await sleep(1500);
+  const ui = await p2.evaluate(() => ({
+    playing: window.demoPlayer.playing,
+    controls: getComputedStyle(document.querySelector('.dp-controls')).display,
+    bar: getComputedStyle(document.querySelector('.dp-bar')).display,
+    cover: document.querySelector('.dp-cover').hidden,
+    light: document.documentElement.classList.contains('dp-bg-light'),
+  }));
+  await p2.screenshot({ path: path.join(OUT, 'options.png') });
+  assert(ui.playing && ui.cover, 'autoStart plays without a Play button');
+  assert(ui.controls === 'none' && ui.bar === 'none' && ui.light, 'control bar and browser frame hidden, light background');
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
   console.log('\nAll good. Screenshots in', OUT);
 } finally {
   await ctx.close();

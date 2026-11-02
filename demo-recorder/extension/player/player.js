@@ -29,12 +29,23 @@
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
-  if (params.get('frame') === '0') settings.browserFrame = false;
-  if (params.get('keys') === '0') settings.showKeys = false;
-  if (params.get('keys') === '1') settings.showKeys = true;
+  function flag(name, key) {
+    var v = params.get(name);
+    if (v === '0' || v === 'false') settings[key] = false;
+    else if (v === '1' || v === 'true') settings[key] = true;
+  }
+  flag('autoplay', 'autoStart');
+  flag('loop', 'loop');
+  flag('controls', 'controls');
+  flag('frame', 'browserFrame');
+  flag('cursor', 'cursor');
+  flag('keys', 'showKeys');
+  flag('captions', 'captions');
+  if (params.get('bg')) settings.background = params.get('bg');
+  if (settings.captions === false) steps.forEach(function (s) { delete s.note; });
 
   // ---------------------------------------------------------------- DOM
   var root = document.getElementById('demo-root');
@@ -62,7 +73,7 @@
       '<div class="dp-progress"><div class="dp-track"></div></div>' +
       '<span class="dp-count"></span>' +
       '<select data-a="mode" title="Mode"><option value="autoplay">Autoplay</option><option value="guided">Guided</option></select>' +
-      '<select data-a="speed" title="Speed"><option value="0.5">0.5×</option><option value="1">1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>' +
+      '<select data-a="speed" title="Speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>' +
       '<button type="button" data-a="fs" title="Fullscreen">⛶</button>' +
     '</div>';
 
@@ -77,6 +88,8 @@
   document.title = M.title || document.title;
   if (!settings.browserFrame) win.classList.add('dp-noframe');
   if (!settings.cursor) cursorEl.classList.add('hidden');
+  if (settings.controls === false) root.classList.add('dp-nocontrols');
+  document.documentElement.classList.add('dp-bg-' + (settings.background || 'dark'));
   modeSel.value = settings.mode;
   speedSel.value = String(settings.speed);
   if (!speedSel.value) { speedSel.value = '1'; }
@@ -604,7 +617,7 @@
   } else {
     showScreen(steps[0].screen).then(function () {
       preloadNext(0);
-      if (params.get('autoplay') === '1') play();
+      if (settings.autoStart) play();
       else showCover(settings.mode === 'guided' ? '▶  Start interactive tour' : '▶  Play demo');
     });
   }

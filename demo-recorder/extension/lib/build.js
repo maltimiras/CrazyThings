@@ -4,11 +4,15 @@ import { FORMAT_VERSION, assembleDemo, stripTargets, insertTargets } from './for
 
 export const DEFAULT_SETTINGS = {
   mode: 'autoplay',      // 'autoplay' | 'guided' (viewer clicks hotspots to advance)
+  autoStart: false,      // start playing as soon as the file opens (no Play button)
   speed: 1,
+  loop: false,           // restart from the beginning when finished
+  controls: true,        // bottom control bar (play/pause, timeline, speed…)
   browserFrame: true,    // draw a fake browser window with the URL bar
-  cursor: true,
-  showKeys: true,       // show a keycap overlay for key presses (Enter, Esc, Alt+K…)
-  loop: false,
+  cursor: true,          // animated mouse cursor and click ripples
+  showKeys: true,        // keycap overlay for key presses (Enter, Esc, Alt+K…)
+  captions: true,        // show step captions (notes) as callouts
+  background: 'dark',    // 'dark' | 'light' | 'none' (white, no shadow — for embedding)
 };
 
 export function describeStep(s) {
