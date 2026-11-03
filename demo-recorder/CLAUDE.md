@@ -62,7 +62,7 @@ Never edit the original recording in place. Work in `demos/<prospect-slug>/`.
    - Keep the story consistent: a value typed in a `type` step (`text`) must also appear on the screens that come after it.
    - **Narration** (`narration` on steps, from the presenter's recorded voice): `replace` already swaps mapped names in it. Then reread every step's narration and rewrite it for the prospect: their company, their use case, and the same numbers as the screens. Keep it natural spoken language, one or two short sentences per step, and roughly the original length, because playback gives each step about 65 ms per character. Don't put narration on steps where nothing should be said.
 
-5. **Pack and verify**
+5. **Pack and verify** (the user can also import the packed file into the extension, with **⬆ Import demo** on the review page, to review it there)
    ```bash
    node tools/demo.mjs pack demos/<slug>/work demos/<slug>/<slug>.demo.html
    node tools/demo.mjs strings demos/<slug>/<slug>.demo.html | grep -i "<old names>"   # should print nothing

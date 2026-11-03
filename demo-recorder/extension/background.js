@@ -122,19 +122,56 @@ function updateSession(id, fn) {
   return sessionQueue;
 }
 
-async function startNarration(sessionId) {
-  const { narrationLang = '' } = await chrome.storage.local.get('narrationLang');
+function micErrorText(err) {
+  const e = String(err || '');
+  if (/NotAllowedError/.test(e)) return 'microphone access is blocked. Allow it for Demo Recorder (and, on a Mac, for Google Chrome in System Settings → Privacy & Security → Microphone).';
+  if (/NotFoundError/.test(e)) return 'no microphone was found.';
+  if (/NotReadableError/.test(e)) return 'the microphone is in use by another app or not readable.';
+  return e || 'the microphone recorder did not respond.';
+}
+
+// Small window bottom-right of the recorded window: live transcript + volume bar.
+async function openNarrationPanel(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    const w = await chrome.windows.get(tab.windowId);
+    const width = 380, height = 240;
+    const win = await chrome.windows.create({
+      url: chrome.runtime.getURL('narration.html'),
+      type: 'popup', width, height, focused: false,
+      left: Math.max(0, (w.left || 0) + (w.width || width) - width - 16),
+      top: Math.max(0, (w.top || 0) + (w.height || height) - height - 16),
+    });
+    // Keep the recorded window in front.
+    chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+    return win.id;
+  } catch (e) {
+    console.warn('[demo-recorder] narration panel not opened', e);
+    return null;
+  }
+}
+
+async function startNarration(sessionId, tabId) {
+  const prefs = await chrome.storage.local.get(['narrationLang', 'recMicId', 'recMicLabel', 'recLive']);
+  const live = prefs.recLive !== false;
   try { await ensureOffscreen(); } catch (e) { return { error: String(e && e.message || e) }; }
-  const r = await toOffscreen({ type: 'mic-start', sessionId, lang: narrationLang });
-  if (!r || r.error) { await closeOffscreen(); return { error: (r && r.error) || 'The microphone recorder did not respond.' }; }
+  const r = await toOffscreen({ type: 'mic-start', sessionId, deviceId: prefs.recMicId || '' });
+  if (!r || r.error) { await closeOffscreen(); return { error: micErrorText(r && r.error) }; }
+  const warnings = [];
+  if (r.fallback) warnings.push(`The selected microphone (${prefs.recMicLabel || 'saved device'}) wasn't found: using ${r.micLabel}.`);
+  const panelWindowId = live ? await openNarrationPanel(tabId) : null;
   await updateSession(sessionId, (s) => {
     s.audio = { mime: r.mime, segments: [{ wall: r.startedAt, at: 0 }], duration: 0, lastWall: r.startedAt };
     s.liveTranscript = [];
+    s.narrationSetup = { lang: prefs.narrationLang || '', micLabel: r.micLabel, live, warnings };
   });
-  return { ok: true };
+  return { ok: true, warnings, panelWindowId };
 }
 
+const toPanel = (type) => chrome.runtime.sendMessage({ target: 'narration', type }).catch(() => {});
+
 async function pauseNarration(sessionId, paused) {
+  toPanel(paused ? 'pause' : 'resume');
   const r = await toOffscreen({ type: paused ? 'mic-pause' : 'mic-resume' });
   if (!r || r.error) return;
   await updateSession(sessionId, (s) => {
@@ -145,7 +182,8 @@ async function pauseNarration(sessionId, paused) {
   });
 }
 
-async function stopNarration(sessionId) {
+async function stopNarration(sessionId, panelWindowId) {
+  if (panelWindowId) await chrome.windows.remove(panelWindowId).catch(() => {});
   const r = await toOffscreen({ type: 'mic-stop' });
   await closeOffscreen();
   await updateSession(sessionId, (s) => {
@@ -179,11 +217,12 @@ async function start(tabId, { size = null, restore = true, narration = false } =
   const session = { id: crypto.randomUUID(), title: tab.title || 'Untitled demo', url: tab.url, createdAt: Date.now() };
   await db.putSession(session);
   let mic = null;
-  if (narration) mic = await startNarration(session.id);
+  if (narration) mic = await startNarration(session.id, tabId);
   await setState({
     sessionId: session.id, tabId, paused: false,
     restoreWin: resized && restore ? resized.before : null,
     narration: !!(mic && mic.ok),
+    panelWindowId: (mic && mic.panelWindowId) || null,
   });
   const r = await sendToTab(tabId, { type: 'rec-state', recording: true, paused: false, reason: 'start' });
   if (!r) {
@@ -193,17 +232,18 @@ async function start(tabId, { size = null, restore = true, narration = false } =
   }
   const warnings = [...((resized && resized.warnings) || [])];
   if (mic && mic.error) warnings.push('Narration not recorded: ' + mic.error);
+  if (mic && mic.warnings) warnings.push(...mic.warnings);
   return { state, resized, warnings };
 }
 
 async function stop({ openReview = true } = {}) {
   if (!state) return { state };
-  const { sessionId, tabId, restoreWin, narration } = state;
+  const { sessionId, tabId, restoreWin, narration, panelWindowId } = state;
   await sendToTab(tabId, { type: 'finish' });
   // Let the final screen/step messages land before we stop accepting them.
   await new Promise((r) => setTimeout(r, 400));
   await setState(null);
-  if (narration) await stopNarration(sessionId);
+  if (narration) await stopNarration(sessionId, panelWindowId);
   await restoreWindow(restoreWin);
   if (openReview) await chrome.tabs.create({ url: chrome.runtime.getURL('review.html#' + sessionId) });
   return { state };
@@ -281,8 +321,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   await ready;
   if (state && state.tabId === tabId) {
-    const { sessionId, narration } = state;
+    const { sessionId, narration, panelWindowId } = state;
     await setState(null);
-    if (narration) await stopNarration(sessionId);
+    if (narration) await stopNarration(sessionId, panelWindowId);
   }
 });

@@ -37,6 +37,15 @@ Leave **Embed images & fonts** on (the default) so the file works offline and fo
 
 Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options (they override the export settings): `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
 
+## Share a demo
+
+Export it with **Export HTML** and send the `.demo.html` file:
+
+- **To watch it:** anyone can open the file in a browser. No extension or login needed.
+- **To edit it in their own Demo Recorder:** they click **⬆ Import demo** at the top of the Recordings list in the review page, or drop the file there. The popup also has an **Import demo…** button. The demo then becomes a normal recording they can preview, edit (steps, captions, narration, zoom, export options) and export again.
+- Demos personalized with Claude Code can be imported the same way, to check or tweak them before sending.
+- The narration **text** travels with the file; the original narration **audio** doesn't.
+
 ## Personalize with Claude Code
 
 ```bash
@@ -56,10 +65,17 @@ node tools/demo.mjs pack demos/northwind/work demos/northwind/northwind.demo.htm
 
 ## Narration (voice-over)
 
-Tick **🎙 Record narration** in the popup and talk while you record. The first time, a tab asks for microphone access.
+Tick **🎙 Record narration** in the popup. A **Narration** box appears, so you can set things up *before* you press Start:
+
+- **Language you'll speak:** used for the live transcript (and passed to ElevenLabs).
+- **Microphone:** pick the input to use. If the list is replaced by **Allow microphone…**, click it once to grant access.
+- **🎙 Test mic:** a volume bar shows whether the microphone hears you ("✓ Hearing you"), and the words Chrome understands appear below it. If they don't, you see why. You can still record and transcribe with ElevenLabs afterwards.
+- **Live transcript while recording:** untick it to skip Chrome's transcription and use only ElevenLabs.
+
+While recording, a small **Narration** window shows the volume bar and your words as they're transcribed. It isn't part of the demo, because only the page's HTML is recorded. Keep it open for the live transcript. If the selected microphone is missing, the default one is used and the popup says so.
 
 - The microphone is recorded through page changes and pauses with the recording.
-- **Live transcript (free, Google Chrome only):** Chrome transcribes while you talk, and each sentence is put on the step that was on screen when you said it. Chrome sends the audio to Google for this. Set the language in the review page under **Settings**.
+- **Live transcript (free, Google Chrome only):** Chrome transcribes while you talk, and each sentence is put on the step that was on screen when you said it. Chrome sends the audio to Google for this.
 - **ElevenLabs (more accurate):** add your ElevenLabs API key under **Settings** in the review page, then click **Transcribe with ElevenLabs**. It uses speech-to-text (`scribe_v2`) with word timings to fill each step's narration.
 - Each step's narration is plain text you can edit in the review page. It's exported as `narration` on the step and shown as **subtitles** in the player (export option "Narration subtitles", or `?subs=0`). Claude Code can rewrite it per prospect like any other text.
 - The original audio stays with the recording: play it, download it, or transcribe it again. It isn't embedded in exports. The plan is to generate the voice from the (personalized) text with ElevenLabs text-to-speech.

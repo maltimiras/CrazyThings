@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>🎙 Narration · Demo Recorder</title>
+  <style>
+    body { margin: 0; font: 13px/1.45 system-ui, sans-serif; color: #e5e7eb; background: #111827; padding: 12px 14px; }
+    header { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #ef4444; animation: p 1.2s infinite; }
+    .paused .dot { background: #f59e0b; animation: none; }
+    @keyframes p { 50% { opacity: .3; } }
+    .meter { height: 8px; border-radius: 4px; background: #374151; overflow: hidden; margin: 10px 0; }
+    .meter i { display: block; height: 100%; width: 0; background: #22c55e; transition: width .06s; }
+    #text { min-height: 60px; color: #f9fafb; font-size: 14px; }
+    #text .interim { color: #9ca3af; }
+    .muted { color: #9ca3af; font-size: 12px; }
+    .warn { color: #fbbf24; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header id="hdr"><span class="dot"></span><span id="title">Narration · recording</span><span id="lang" class="muted"></span></header>
+  <div class="meter"><i id="level"></i></div>
+  <div id="text" class="muted">Speak, and your words appear here…</div>
+  <div id="status" class="muted">Not part of the demo. Keep this window open for the live transcript.</div>
+  <script src="narration.js" type="module"></script>
+</body>
+</html>

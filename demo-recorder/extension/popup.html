@@ -26,6 +26,11 @@
     button.small { padding: 4px 8px; font-size: 12px; }
     .warn { color: #b45309; font-size: 12px; }
     label.mic { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+    .meter { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; }
+    .meter i { display: block; height: 100%; width: 0; background: #22c55e; transition: width .06s; }
+    .heard { font-size: 12px; color: #374151; min-height: 16px; }
+    .heard.bad { color: #b45309; }
+    .ok { color: #047857; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -53,6 +58,17 @@
           <label class="chk"><input type="checkbox" id="restore" checked> Restore window size after recording</label>
         </div>
         <label class="mic"><input type="checkbox" id="narration"> 🎙 Record narration (microphone)</label>
+        <div id="narrbox" class="size" hidden>
+          <label for="lang">Language you'll speak</label>
+          <select id="lang"></select>
+          <label for="mic">Microphone</label>
+          <select id="mic"></select>
+          <button id="allowmic" class="small" hidden>Allow microphone…</button>
+          <div class="row"><button id="testmic" class="small">🎙 Test mic</button><span id="micstatus" class="muted"></span></div>
+          <div class="meter"><i id="level"></i></div>
+          <div id="heard" class="heard"></div>
+          <label class="chk"><input type="checkbox" id="live" checked> Live transcript while recording</label>
+        </div>
         <button id="start" class="primary">● Start recording this tab</button>
         <div class="muted">Clicks, typing, keyboard shortcuts, scrolling and page changes are captured. Password values are masked.</div>
       </div>
@@ -64,7 +80,7 @@
         <button id="stop" class="danger">■ Stop &amp; review</button>
       </div>
     </div>
-    <button id="library">Open recordings</button>
+    <div class="row"><button id="library" style="flex:1">Open recordings</button><button id="importdemo" title="Load a .demo.html someone shared with you">⬆ Import demo…</button></div>
     <div id="warn" class="warn"></div>
     <div id="err" class="err"></div>
   </main>

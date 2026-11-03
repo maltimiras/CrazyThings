@@ -1,3 +1,5 @@
+import { fillLanguageSelect, openMic, startLevel, startRecognizer } from './lib/miclevel.js';
+
 const $ = (id) => document.getElementById(id);
 const call = (msg) => chrome.runtime.sendMessage(msg);
 
@@ -18,8 +20,11 @@ async function refresh() {
 
 // ---------- recording size ----------
 async function prefs() {
-  const p = await chrome.storage.local.get(['recSize', 'recCustom', 'recRestore', 'recNarration']);
-  return { size: p.recSize || 'current', custom: p.recCustom || { w: 1440, h: 900 }, restore: p.recRestore !== false, narration: !!p.recNarration };
+  const p = await chrome.storage.local.get(['recSize', 'recCustom', 'recRestore', 'recNarration', 'narrationLang', 'recMicId', 'recLive']);
+  return {
+    size: p.recSize || 'current', custom: p.recCustom || { w: 1440, h: 900 }, restore: p.recRestore !== false,
+    narration: !!p.recNarration, lang: p.narrationLang || '', micId: p.recMicId || '', live: p.recLive !== false,
+  };
 }
 
 function chosenSize() {
@@ -40,6 +45,12 @@ async function savePrefs() {
     recCustom: { w: parseInt($('cw').value, 10) || 1440, h: parseInt($('ch').value, 10) || 900 },
     recRestore: $('restore').checked,
     recNarration: $('narration').checked,
+    narrationLang: $('lang').value,
+    recLive: $('live').checked,
+    ...($('mic').value || !$('mic').hidden ? {
+      recMicId: $('mic').value,
+      recMicLabel: $('mic').selectedOptions[0] ? $('mic').selectedOptions[0].textContent : '',
+    } : {}),
   });
 }
 
@@ -61,6 +72,75 @@ function showWarnings(r) {
   return w.length;
 }
 
+// ---------- narration: microphone choice and test ----------
+async function renderMics(selected) {
+  const allowed = await micAllowed();
+  $('allowmic').hidden = allowed;
+  $('mic').hidden = !allowed;
+  $('testmic').disabled = !allowed;
+  if (!allowed) { $('micstatus').textContent = 'Allow the microphone first.'; return; }
+  const devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput');
+  const keep = selected != null ? selected : $('mic').value;
+  $('mic').innerHTML = '';
+  for (const d of devices) {
+    const o = document.createElement('option');
+    o.value = d.deviceId === 'default' ? '' : d.deviceId;
+    o.textContent = d.label || (d.deviceId === 'default' ? 'Default microphone' : 'Microphone');
+    $('mic').appendChild(o);
+  }
+  if (!devices.length) { $('micstatus').textContent = 'No microphone found.'; $('testmic').disabled = true; return; }
+  $('mic').value = [...$('mic').options].some((o) => o.value === keep) ? keep : $('mic').options[0].value;
+  if ($('micstatus').textContent === 'Allow the microphone first.') $('micstatus').textContent = '';
+}
+
+let test = null; // { stream, stopLevel, recognizer, timer }
+function stopTest() {
+  if (!test) return;
+  test.stopLevel();
+  test.recognizer.stop();
+  clearTimeout(test.timer);
+  test.stream.getTracks().forEach((t) => t.stop());
+  test = null;
+  $('testmic').textContent = '🎙 Test mic';
+  $('level').style.width = '0';
+}
+
+async function startTest() {
+  stopTest();
+  $('heard').className = 'heard';
+  $('heard').textContent = 'Say something…';
+  $('micstatus').className = 'muted';
+  $('micstatus').textContent = 'Listening…';
+  const { stream, fallback } = await openMic($('mic').value);
+  let heardSound = false;
+  const stopLevel = startLevel(stream, (v) => {
+    $('level').style.width = Math.round(v * 100) + '%';
+    if (v > 0.08 && !heardSound) {
+      heardSound = true;
+      $('micstatus').className = 'ok';
+      $('micstatus').textContent = '✓ Hearing you' + (fallback ? ' (default mic: the selected one was not found)' : '');
+    }
+  });
+  const timer = setTimeout(() => {
+    if (!heardSound) { $('micstatus').className = 'warn'; $('micstatus').textContent = 'No sound: check the selected microphone.'; }
+  }, 4000);
+  const recognizer = startRecognizer({
+    lang: $('lang').value,
+    onText: (text) => { $('heard').className = 'heard'; $('heard').textContent = '“' + text + '”'; },
+    onStatus: (status, reason) => {
+      $('heard').className = 'heard bad';
+      $('heard').textContent = `Live transcript not available (${reason}). Record anyway and use "Transcribe with ElevenLabs" afterwards.`;
+    },
+  });
+  test = { stream, stopLevel, recognizer, timer };
+  $('testmic').textContent = '■ Stop test';
+}
+
+function showNarrationBox() {
+  $('narrbox').hidden = !$('narration').checked;
+  if ($('narrbox').hidden) stopTest();
+}
+
 function guard(fn) {
   return async () => {
     $('err').textContent = '';
@@ -76,6 +156,7 @@ function guard(fn) {
 
 $('start').onclick = guard(async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  stopTest();
   await savePrefs();
   const narration = $('narration').checked;
   if (narration && !(await micAllowed())) {
@@ -93,6 +174,7 @@ $('pause').onclick = guard(async () => {
 });
 $('stop').onclick = guard(() => call({ type: 'stop' }));
 $('library').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('review.html') });
+$('importdemo').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('review.html#import') });
 
 $('resize').onclick = guard(async () => {
   const size = chosenSize();
@@ -105,7 +187,14 @@ $('resize').onclick = guard(async () => {
   return r;
 });
 $('size').onchange = () => { $('custom').hidden = $('size').value !== 'custom'; savePrefs(); };
-$('cw').onchange = $('ch').onchange = $('restore').onchange = $('narration').onchange = savePrefs;
+$('cw').onchange = $('ch').onchange = $('restore').onchange = $('live').onchange = savePrefs;
+$('narration').onchange = () => { showNarrationBox(); savePrefs(); };
+$('mic').onchange = () => { savePrefs(); if (test) startTest().catch((e) => { $('micstatus').textContent = e.message; }); };
+$('lang').onchange = () => { savePrefs(); if (test) startTest().catch((e) => { $('micstatus').textContent = e.message; }); };
+$('testmic').onclick = guard(async () => { if (test) stopTest(); else await startTest(); });
+$('allowmic').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('mic-setup.html') });
+if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => renderMics());
+window.addEventListener('pagehide', stopTest);
 
 (async () => {
   const p = await prefs();
@@ -115,6 +204,10 @@ $('cw').onchange = $('ch').onchange = $('restore').onchange = $('narration').onc
   $('restore').checked = p.restore;
   $('narration').checked = p.narration;
   $('custom').hidden = p.size !== 'custom';
+  fillLanguageSelect($('lang'), p.lang);
+  $('live').checked = p.live;
+  await renderMics(p.micId);
+  showNarrationBox();
   showCurrentSize();
 })();
 

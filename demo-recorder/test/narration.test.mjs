@@ -50,3 +50,14 @@ test('mergeNarration keeps text from a deleted step', () => {
   assert.equal(mergeNarration('', 'Only this.'), 'Only this.');
   assert.equal(mergeNarration('Kept.', undefined), 'Kept.');
 });
+
+test('toIso639 maps recording languages to ElevenLabs codes', async () => {
+  const { toIso639, languageName } = await import('../extension/lib/miclevel.js');
+  assert.equal(toIso639('es-ES'), 'es');
+  assert.equal(toIso639('ca-ES'), 'ca');
+  assert.equal(toIso639('en_GB'), 'en');
+  assert.equal(toIso639(''), '');
+  assert.equal(toIso639(undefined), '');
+  assert.equal(languageName('ca-ES'), 'Català');
+  assert.equal(languageName(''), 'Browser default');
+});
