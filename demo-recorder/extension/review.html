@@ -38,6 +38,13 @@
     td.z { width: 120px; }
     td.z select { font-size: 12px; padding: 5px 6px; width: 112px; }
     td.x { width: 40px; text-align: right; }
+    td.note textarea.nar { margin-top: 4px; background: #f5f3ff; }
+    #narr .row, #narr audio { margin-bottom: 8px; }
+    #narr audio { width: 100%; }
+    a.btnlink { font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: inherit; text-decoration: none; }
+    details.card summary { cursor: pointer; }
+    fieldset input[type=password], fieldset input[type=text] { flex: 0 1 190px; min-width: 0; width: 190px; }
+    .bad { color: #b91c1c; }
     td.x button { padding: 4px 9px; color: var(--m); }
     #progress { font-size: 13px; color: var(--m); }
     .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
@@ -87,6 +94,7 @@
           <label class="chk"><input type="checkbox" data-setting="cursor"> Mouse cursor &amp; click effects</label>
           <label class="chk" title="Overlay like “Alt + K” when a key or shortcut was pressed"><input type="checkbox" data-setting="showKeys"> Key presses (e.g. Alt + K)</label>
           <label class="chk"><input type="checkbox" data-setting="captions"> Captions</label>
+          <label class="chk"><input type="checkbox" data-setting="subtitles"> Narration subtitles</label>
           <label class="chk" title="The view zooms in on each click and typing step. Turn it off for single steps in the list below."><input type="checkbox" data-setting="zoom"> Auto-zoom on clicks &amp; typing</label>
           <label><span>Zoom level</span>
             <select data-setting="zoomLevel"><option value="1.5">1.5×</option><option value="1.8">1.8×</option><option value="2.2">2.2×</option></select></label>
@@ -100,10 +108,41 @@
         </fieldset>
       </div>
     </div>
+    <div class="card" id="narr" hidden>
+      <div class="row">
+        <b>🎙 Narration</b>
+        <span class="muted" id="narr-info"></span>
+        <span style="flex:1"></span>
+        <button id="use-live" hidden>Use live transcript</button>
+        <button id="transcribe">Transcribe with ElevenLabs</button>
+        <a id="narr-dl" class="btnlink">⬇ Download audio</a>
+      </div>
+      <audio id="narr-audio" controls preload="metadata"></audio>
+      <div class="muted" id="narr-status"></div>
+    </div>
     <div class="card">
-      <div class="muted" style="margin-bottom:8px">Steps — delete noise, add captions (shown as callouts during playback).</div>
+      <div class="muted" style="margin-bottom:8px">Steps — delete noise, add captions (shown as callouts) and narration (the spoken text, shown as subtitles; later voiced with ElevenLabs).</div>
       <table><tbody id="steps"></tbody></table>
     </div>
+    <details class="card" id="settings">
+      <summary><b>Settings</b> <span class="muted">— transcription</span></summary>
+      <div class="opts">
+        <fieldset>
+          <legend>ElevenLabs speech-to-text</legend>
+          <label><span>API key</span><input type="password" data-pref="elKey" autocomplete="off" placeholder="xi-…"></label>
+          <label><span>Model</span><input type="text" data-pref="elModel" placeholder="scribe_v2"></label>
+          <label><span>Language</span>
+            <select data-pref="elLang"><option value="">Detect</option><option value="en">English</option><option value="es">Spanish</option><option value="ca">Catalan</option><option value="fr">French</option><option value="de">German</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="nl">Dutch</option></select></label>
+          <div class="muted">Stored only in this browser's extension storage. Audio is sent to ElevenLabs when you click Transcribe.</div>
+        </fieldset>
+        <fieldset>
+          <legend>Live transcript (Google Chrome)</legend>
+          <label><span>Language</span>
+            <select data-pref="narrationLang"><option value="">Browser default</option><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="es-ES">Spanish</option><option value="ca-ES">Catalan</option><option value="fr-FR">French</option><option value="de-DE">German</option><option value="it-IT">Italian</option><option value="pt-PT">Portuguese</option><option value="nl-NL">Dutch</option></select></label>
+          <div class="muted">Free, runs while you record. Chrome sends the audio to Google to transcribe it.</div>
+        </fieldset>
+      </div>
+    </details>
   </template>
   <script src="review.js" type="module"></script>
 </body>

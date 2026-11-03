@@ -1,6 +1,7 @@
 // Demo Recorder — background service worker.
 // Owns recording state and persists screens/steps into IndexedDB as they stream in.
 import { db } from './lib/db.js';
+import { assignPhrases, livePhrases } from './lib/narration.js';
 
 let state = null; // { sessionId, tabId, paused }
 const ready = chrome.storage.session.get('rec').then((r) => { state = r.rec || null; updateBadge(); });
@@ -90,7 +91,83 @@ async function restoreWindow(b) {
   } catch { /* window closed, or the old size no longer fits the screen */ }
 }
 
-async function start(tabId, { size = null, restore = true } = {}) {
+// ---------- narration (microphone, via an offscreen document) ----------
+const toOffscreen = (msg) => chrome.runtime.sendMessage({ ...msg, target: 'offscreen' }).catch((e) => ({ error: String(e && e.message || e) }));
+
+async function ensureOffscreen() {
+  const existing = chrome.runtime.getContexts
+    ? await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] })
+    : [];
+  if (existing.length) return;
+  await chrome.offscreen.createDocument({
+    url: 'offscreen.html',
+    reasons: ['USER_MEDIA'],
+    justification: 'Record the narration from the microphone while a demo is being recorded.',
+  });
+}
+
+async function closeOffscreen() {
+  try { await chrome.offscreen.closeDocument(); } catch { /* not open */ }
+}
+
+// Session writes from several async sources (transcript, pause, stop) go through one queue.
+let sessionQueue = Promise.resolve();
+function updateSession(id, fn) {
+  sessionQueue = sessionQueue.then(async () => {
+    const s = await db.getSession(id);
+    if (!s) return;
+    fn(s);
+    await db.putSession(s);
+  }).catch((e) => console.warn('[demo-recorder] session update failed', e));
+  return sessionQueue;
+}
+
+async function startNarration(sessionId) {
+  const { narrationLang = '' } = await chrome.storage.local.get('narrationLang');
+  try { await ensureOffscreen(); } catch (e) { return { error: String(e && e.message || e) }; }
+  const r = await toOffscreen({ type: 'mic-start', sessionId, lang: narrationLang });
+  if (!r || r.error) { await closeOffscreen(); return { error: (r && r.error) || 'The microphone recorder did not respond.' }; }
+  await updateSession(sessionId, (s) => {
+    s.audio = { mime: r.mime, segments: [{ wall: r.startedAt, at: 0 }], duration: 0, lastWall: r.startedAt };
+    s.liveTranscript = [];
+  });
+  return { ok: true };
+}
+
+async function pauseNarration(sessionId, paused) {
+  const r = await toOffscreen({ type: paused ? 'mic-pause' : 'mic-resume' });
+  if (!r || r.error) return;
+  await updateSession(sessionId, (s) => {
+    const a = s.audio;
+    if (!a) return;
+    if (paused && a.lastWall != null) { a.duration += r.at - a.lastWall; a.lastWall = null; }
+    if (!paused && a.lastWall == null) { a.segments.push({ wall: r.at, at: a.duration }); a.lastWall = r.at; }
+  });
+}
+
+async function stopNarration(sessionId) {
+  const r = await toOffscreen({ type: 'mic-stop' });
+  await closeOffscreen();
+  await updateSession(sessionId, (s) => {
+    const a = s.audio;
+    if (!a) return;
+    if (a.lastWall != null && r && r.stoppedAt) a.duration += r.stoppedAt - a.lastWall;
+    a.lastWall = null;
+    a.chunks = r && r.chunks;
+  });
+  // Put the live (Chrome) transcript on the steps it was spoken over.
+  const session = await db.getSession(sessionId);
+  if (session && session.liveTranscript && session.liveTranscript.length) {
+    const steps = await db.getSteps(sessionId);
+    const texts = assignPhrases(steps, session.audio, livePhrases(session.audio, session.liveTranscript));
+    for (let i = 0; i < steps.length; i++) {
+      if (texts[i] && !steps[i].narration) { steps[i].narration = texts[i]; await db.putStep(steps[i]); }
+    }
+    await updateSession(sessionId, (s) => { s.narrationSource = 'chrome'; });
+  }
+}
+
+async function start(tabId, { size = null, restore = true, narration = false } = {}) {
   const tab = await chrome.tabs.get(tabId);
   if (!tab.url || /^(chrome|edge|about|chrome-extension|devtools|view-source):/i.test(tab.url) ||
       /chromewebstore\.google\.com|chrome\.google\.com\/webstore/.test(tab.url)) {
@@ -101,23 +178,32 @@ async function start(tabId, { size = null, restore = true } = {}) {
   if (size && size.w && size.h) resized = await resizeTabViewport(tabId, size.w, size.h);
   const session = { id: crypto.randomUUID(), title: tab.title || 'Untitled demo', url: tab.url, createdAt: Date.now() };
   await db.putSession(session);
-  await setState({ sessionId: session.id, tabId, paused: false, restoreWin: resized && restore ? resized.before : null });
+  let mic = null;
+  if (narration) mic = await startNarration(session.id);
+  await setState({
+    sessionId: session.id, tabId, paused: false,
+    restoreWin: resized && restore ? resized.before : null,
+    narration: !!(mic && mic.ok),
+  });
   const r = await sendToTab(tabId, { type: 'rec-state', recording: true, paused: false, reason: 'start' });
   if (!r) {
     // Tab was open before the extension was installed/reloaded: inject now.
     // The injected script asks for state via 'hello' and starts recording itself.
     await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
   }
-  return { state, resized };
+  const warnings = [...((resized && resized.warnings) || [])];
+  if (mic && mic.error) warnings.push('Narration not recorded: ' + mic.error);
+  return { state, resized, warnings };
 }
 
 async function stop({ openReview = true } = {}) {
   if (!state) return { state };
-  const { sessionId, tabId, restoreWin } = state;
+  const { sessionId, tabId, restoreWin, narration } = state;
   await sendToTab(tabId, { type: 'finish' });
   // Let the final screen/step messages land before we stop accepting them.
   await new Promise((r) => setTimeout(r, 400));
   await setState(null);
+  if (narration) await stopNarration(sessionId);
   await restoreWindow(restoreWin);
   if (openReview) await chrome.tabs.create({ url: chrome.runtime.getURL('review.html#' + sessionId) });
   return { state };
@@ -126,6 +212,7 @@ async function stop({ openReview = true } = {}) {
 async function setPaused(paused) {
   if (!state) return { state };
   await setState({ ...state, paused });
+  if (state.narration) await pauseNarration(state.sessionId, paused);
   await sendToTab(state.tabId, { type: 'rec-state', recording: true, paused, reason: 'resume' });
   return { state };
 }
@@ -148,7 +235,16 @@ async function handle(msg, sender) {
       const steps = state ? await db.countSteps(state.sessionId) : 0;
       return { state, steps };
     }
-    case 'start': return start(msg.tabId, { size: msg.size, restore: msg.restore !== false });
+    case 'start': return start(msg.tabId, { size: msg.size, restore: msg.restore !== false, narration: !!msg.narration });
+    case 'transcript':
+      if (state && state.narration) {
+        const id = state.sessionId;
+        updateSession(id, (s) => { (s.liveTranscript = s.liveTranscript || []).push({ wall: msg.wall, text: msg.text }); });
+      }
+      return { ok: true };
+    case 'transcript-status':
+      if (state && state.narration) updateSession(state.sessionId, (s) => { s.liveStatus = msg.status + (msg.error ? ': ' + msg.error : ''); });
+      return { ok: true };
     case 'resize': return resizeTabViewport(msg.tabId, msg.w, msg.h);
     case 'measure': return measureTab(msg.tabId);
     case 'stop': return stop();
@@ -184,5 +280,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   await ready;
-  if (state && state.tabId === tabId) await setState(null);
+  if (state && state.tabId === tabId) {
+    const { sessionId, narration } = state;
+    await setState(null);
+    if (narration) await stopNarration(sessionId);
+  }
 });

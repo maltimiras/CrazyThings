@@ -63,3 +63,8 @@ body { background: #0f1117; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "S
 .dp-bg-light .dp-window { box-shadow: 0 24px 60px rgba(15,23,42,.18), 0 0 0 1px rgba(15,23,42,.08); }
 .dp-bg-none body, .dp-bg-none .dp-stage { background: #fff; }
 .dp-bg-none .dp-window { box-shadow: 0 0 0 1px rgba(15,23,42,.10); }
+
+/* narration subtitles */
+.dp-subtitle { position: absolute; left: 50%; bottom: calc(24px / var(--dp-scale, 1)); transform: translateX(-50%); max-width: 82%; width: max-content; box-sizing: border-box; text-align: center; background: rgba(17,24,39,.86); color: #fff; font-size: calc(18px / var(--dp-scale, 1)); line-height: 1.4; padding: calc(9px / var(--dp-scale, 1)) calc(16px / var(--dp-scale, 1)); border-radius: calc(10px / var(--dp-scale, 1)); opacity: 0; transition: opacity .2s; }
+.dp-hud.has-sub .dp-subtitle { opacity: 1; }
+.dp-hud.has-sub .dp-keycap { bottom: calc(96px / var(--dp-scale, 1)); }

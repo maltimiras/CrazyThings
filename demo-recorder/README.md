@@ -54,10 +54,20 @@ node tools/demo.mjs replace pipeline.demo.html map.json demos/northwind/work   #
 node tools/demo.mjs pack demos/northwind/work demos/northwind/northwind.demo.html
 ```
 
+## Narration (voice-over)
+
+Tick **🎙 Record narration** in the popup and talk while you record. The first time, a tab asks for microphone access.
+
+- The microphone is recorded through page changes and pauses with the recording.
+- **Live transcript (free, Google Chrome only):** Chrome transcribes while you talk, and each sentence is put on the step that was on screen when you said it. Chrome sends the audio to Google for this. Set the language in the review page under **Settings**.
+- **ElevenLabs (more accurate):** add your ElevenLabs API key under **Settings** in the review page, then click **Transcribe with ElevenLabs**. It uses speech-to-text (`scribe_v2`) with word timings to fill each step's narration.
+- Each step's narration is plain text you can edit in the review page. It's exported as `narration` on the step and shown as **subtitles** in the player (export option "Narration subtitles", or `?subs=0`). Claude Code can rewrite it per prospect like any other text.
+- The original audio stays with the recording: play it, download it, or transcribe it again. It isn't embedded in exports. The plan is to generate the voice from the (personalized) text with ElevenLabs text-to-speech.
+
 ## Test
 
 ```bash
-npm test     # loads the extension in headless Chromium, records examples/sample-app, exports, replays, asserts
+npm test     # unit tests, then the extension in headless Chromium: records examples/sample-app, exports, replays, asserts
 ```
 
 ## Limitations

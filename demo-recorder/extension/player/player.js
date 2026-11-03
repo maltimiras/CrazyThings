@@ -29,7 +29,7 @@
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
   function flag(name, key) {
@@ -44,6 +44,7 @@
   flag('cursor', 'cursor');
   flag('keys', 'showKeys');
   flag('zoom', 'zoom');
+  flag('subs', 'subtitles');
   flag('captions', 'captions');
   if (params.get('bg')) settings.background = params.get('bg');
   if (settings.captions === false) steps.forEach(function (s) { delete s.note; });
@@ -66,6 +67,7 @@
           '<div class="dp-hud">' +
             '<div class="dp-callout"></div>' +
             '<div class="dp-keycap"></div>' +
+            '<div class="dp-subtitle"></div>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -87,6 +89,7 @@
   var stage = $('.dp-stage'), win = $('.dp-window'), viewport = $('.dp-viewport'), urlEl = $('.dp-url');
   var frames = root.querySelectorAll('.dp-frame');
   var zoomEl = $('.dp-zoom');
+  var hud = $('.dp-hud'), subtitle = $('.dp-subtitle');
   var overlay = $('.dp-overlay'), cursorEl = $('.dp-cursor'), callout = $('.dp-callout'), keycap = $('.dp-keycap');
   var cover = $('.dp-cover'), coverBtn = $('.dp-cover button');
   var track = $('.dp-track'), countEl = $('.dp-count'), playBtn = root.querySelector('[data-a=play]');
@@ -387,6 +390,15 @@
   }
   function hideKey() { keycap.classList.remove('on'); }
 
+  // Narration subtitles (until real voice clips exist, the spoken text is shown at the bottom).
+  function showSubtitle(text) {
+    subtitle.textContent = text;
+    hud.classList.add('has-sub');
+  }
+  function hideSubtitle() { hud.classList.remove('has-sub'); }
+  // Roughly how long the narration takes to say (~15 characters per second).
+  function speakTime(text) { return clamp(text.length * 65, 1500, 20000); }
+
   function readTime(text) { return clamp(1200 + text.length * 45, 1800, 9000); }
 
   async function typeText(el, from, to) {
@@ -485,6 +497,8 @@
     // Keep the camera during key presses (they continue the typing); zoom out for everything else.
     var zoomOut = s.type !== 'click' && s.type !== 'type' && s.type !== 'key' && setZoom(1, 0, 0, true);
     var stepStart = Date.now();
+    var narr = settings.subtitles !== false && s.narration ? String(s.narration) : '';
+    if (narr) showSubtitle(narr); else hideSubtitle();
 
     switch (s.type) {
       case 'click': {
@@ -555,11 +569,11 @@
       default: // change
         await noteGate(s, el, 450);
     }
-    // Let a zoom-out finish before the next step, so the full page is actually seen.
-    if (zoomOut) {
-      var left = 750 - (Date.now() - stepStart) * settings.speed;
-      if (left > 0) await sleep(left);
-    }
+    // Let a zoom-out finish before the next step, so the full page is actually seen,
+    // and give narration time to be read (autoplay; guided mode waits for the viewer anyway).
+    var minMs = Math.max(zoomOut ? 750 : 0, narr && !guided ? speakTime(narr) : 0);
+    var left = minMs - (Date.now() - stepStart) * settings.speed;
+    if (left > 0) await sleep(left);
     check(my);
   }
 
@@ -600,6 +614,7 @@
     if (!playing) return;
     playing = false;
     abortAll();
+    hideSubtitle();
     hideCallout();
     hideKey();
     updateUI();
@@ -611,6 +626,7 @@
     abortAll();
     hideCallout();
     hideKey();
+    hideSubtitle();
     idx = clamp(i, 0, steps.length - 1);
     cover.hidden = true;
     updateUI();

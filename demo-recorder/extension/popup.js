@@ -18,8 +18,8 @@ async function refresh() {
 
 // ---------- recording size ----------
 async function prefs() {
-  const p = await chrome.storage.local.get(['recSize', 'recCustom', 'recRestore']);
-  return { size: p.recSize || 'current', custom: p.recCustom || { w: 1440, h: 900 }, restore: p.recRestore !== false };
+  const p = await chrome.storage.local.get(['recSize', 'recCustom', 'recRestore', 'recNarration']);
+  return { size: p.recSize || 'current', custom: p.recCustom || { w: 1440, h: 900 }, restore: p.recRestore !== false, narration: !!p.recNarration };
 }
 
 function chosenSize() {
@@ -39,6 +39,7 @@ async function savePrefs() {
     recSize: $('size').value,
     recCustom: { w: parseInt($('cw').value, 10) || 1440, h: parseInt($('ch').value, 10) || 900 },
     recRestore: $('restore').checked,
+    recNarration: $('narration').checked,
   });
 }
 
@@ -50,8 +51,12 @@ async function showCurrentSize() {
   $('size').options[0].textContent = ok ? `Current window (${m.w} × ${m.h})` : 'Current window';
 }
 
+async function micAllowed() {
+  try { return (await navigator.permissions.query({ name: 'microphone' })).state === 'granted'; } catch { return false; }
+}
+
 function showWarnings(r) {
-  const w = (r && r.resized && r.resized.warnings) || (r && r.warnings) || [];
+  const w = (r && r.warnings) || [];
   $('warn').textContent = w.join(' ');
   return w.length;
 }
@@ -72,7 +77,13 @@ function guard(fn) {
 $('start').onclick = guard(async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   await savePrefs();
-  const r = await call({ type: 'start', tabId: tab.id, size: chosenSize(), restore: $('restore').checked });
+  const narration = $('narration').checked;
+  if (narration && !(await micAllowed())) {
+    // The recorder runs in a hidden page that can't show Chrome's permission prompt: ask once in a tab.
+    await chrome.tabs.create({ url: chrome.runtime.getURL('mic-setup.html') });
+    throw new Error('Allow the microphone in the tab that just opened, then press Start again.');
+  }
+  const r = await call({ type: 'start', tabId: tab.id, size: chosenSize(), restore: $('restore').checked, narration });
   if (!r.error && !showWarnings(r)) window.close();
   return r;
 });
@@ -94,7 +105,7 @@ $('resize').onclick = guard(async () => {
   return r;
 });
 $('size').onchange = () => { $('custom').hidden = $('size').value !== 'custom'; savePrefs(); };
-$('cw').onchange = $('ch').onchange = $('restore').onchange = savePrefs;
+$('cw').onchange = $('ch').onchange = $('restore').onchange = $('narration').onchange = savePrefs;
 
 (async () => {
   const p = await prefs();
@@ -102,6 +113,7 @@ $('cw').onchange = $('ch').onchange = $('restore').onchange = savePrefs;
   $('cw').value = p.custom.w;
   $('ch').value = p.custom.h;
   $('restore').checked = p.restore;
+  $('narration').checked = p.narration;
   $('custom').hidden = p.size !== 'custom';
   showCurrentSize();
 })();

@@ -25,6 +25,7 @@
     .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
     button.small { padding: 4px 8px; font-size: 12px; }
     .warn { color: #b45309; font-size: 12px; }
+    label.mic { display: flex; gap: 6px; align-items: center; font-size: 13px; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -51,6 +52,7 @@
           <div class="row"><span id="cursize" class="muted"></span><button id="resize" class="small">Resize now</button></div>
           <label class="chk"><input type="checkbox" id="restore" checked> Restore window size after recording</label>
         </div>
+        <label class="mic"><input type="checkbox" id="narration"> 🎙 Record narration (microphone)</label>
         <button id="start" class="primary">● Start recording this tab</button>
         <div class="muted">Clicks, typing, keyboard shortcuts, scrolling and page changes are captured. Password values are masked.</div>
       </div>

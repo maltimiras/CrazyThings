@@ -1,18 +1,22 @@
 // Tiny IndexedDB wrapper shared by the background worker and extension pages.
 const DB_NAME = 'demo-recorder';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let dbPromise = null;
 
 function open() {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
+      req.onupgradeneeded = (e) => {
         const d = req.result;
-        d.createObjectStore('sessions', { keyPath: 'id' });
-        d.createObjectStore('screens', { keyPath: 'id' }).createIndex('sessionId', 'sessionId');
-        d.createObjectStore('steps', { keyPath: 'seq', autoIncrement: true }).createIndex('sessionId', 'sessionId');
-        d.createObjectStore('css');
+        if (e.oldVersion < 1) {
+          d.createObjectStore('sessions', { keyPath: 'id' });
+          d.createObjectStore('screens', { keyPath: 'id' }).createIndex('sessionId', 'sessionId');
+          d.createObjectStore('steps', { keyPath: 'seq', autoIncrement: true }).createIndex('sessionId', 'sessionId');
+          d.createObjectStore('css');
+        }
+        // v2: narration audio, stored as MediaRecorder chunks keyed [sessionId, n].
+        if (e.oldVersion < 2) d.createObjectStore('audio');
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -58,7 +62,14 @@ export const db = {
   putCss: (key, text) => tx('css', 'readwrite', (st) => st.put(text, key)),
   getCss: (key) => tx('css', 'readonly', (st) => st.get(key)),
   hasCss: (key) => tx('css', 'readonly', (st) => st.count(key)).then((n) => n > 0),
+  putAudioChunk: (sessionId, n, blob) => tx('audio', 'readwrite', (st) => st.put(blob, [sessionId, n])),
+  async getAudioBlob(sessionId, type = 'audio/webm') {
+    const chunks = await tx('audio', 'readonly', (st) => st.getAll(IDBKeyRange.bound([sessionId, 0], [sessionId, Infinity])));
+    return chunks && chunks.length ? new Blob(chunks, { type: chunks[0].type || type }) : null;
+  },
+  deleteAudio: (sessionId) => tx('audio', 'readwrite', (st) => st.delete(IDBKeyRange.bound([sessionId, 0], [sessionId, Infinity]))),
   async deleteSession(id) {
+    await this.deleteAudio(id);
     await deleteByIndex('steps', id);
     await deleteByIndex('screens', id);
     await tx('sessions', 'readwrite', (st) => st.delete(id));

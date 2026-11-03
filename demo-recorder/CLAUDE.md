@@ -27,10 +27,10 @@ An exported demo is one HTML file with these `<script>` data blocks (none of the
 - `type`: types into the target, animating from `from` to `text`.
 - `key`: shows a keycap overlay (`key`, e.g. `Escape`, `Ctrl+K`).
 - `scroll`: animates the window (or the target element) to `top`/`left`.
-- Optional on any step: `note` (caption callout), `hold` (ms to pause).
+- Optional on any step: `note` (caption callout), `hold` (ms to pause), `narration` (what the presenter says during this step: spoken text, shown as subtitles today and voiced with ElevenLabs later).
 - Optional on `click`/`type` steps: `zoom`. Use `false` to keep the full page in view for that step, a number (e.g. `2`) for a custom zoom level, or `true` to zoom even when auto-zoom is off globally. Zoom is a CSS transform on the live HTML, so it never affects what you can edit.
 
-**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `autoStart` (play on open, no Play button), `speed`, `loop`, `controls` (bottom control bar), `browserFrame`, `cursor`, `showKeys` (keycap overlay for key presses), `captions`, `background` (`dark` | `light` | `none`), `zoom` (auto-zoom onto clicks and typing) and `zoomLevel` (e.g. `1.8`). URL overrides: `?mode=guided`, `?autoplay=1`, `?speed=2`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light`, `?zoom=1`.
+**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `autoStart` (play on open, no Play button), `speed`, `loop`, `controls` (bottom control bar), `browserFrame`, `cursor`, `showKeys` (keycap overlay for key presses), `captions`, `subtitles` (show `narration` as subtitles), `background` (`dark` | `light` | `none`), `zoom` (auto-zoom onto clicks and typing) and `zoomLevel` (e.g. `1.8`). URL overrides: `?mode=guided`, `?autoplay=1`, `?speed=2`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?subs=0`, `?bg=light`, `?zoom=1`.
 
 ## Personalization workflow
 
@@ -60,6 +60,7 @@ Never edit the original recording in place. Work in `demos/<prospect-slug>/`.
    - `screens/sN.html`: one file per screen. Fix anything the map can't do: text split across tags (`Acme <b>Corp</b>`), numbers that must stay **consistent across screens** (KPI totals = sum of table rows, counts, chart labels/SVG text), dates, avatars and initials.
    - `assets/aN.png` + `assets/assets.json`: replace a logo by overwriting the file (keep the id; change the extension in `assets.json` if needed).
    - Keep the story consistent: a value typed in a `type` step (`text`) must also appear on the screens that come after it.
+   - **Narration** (`narration` on steps, from the presenter's recorded voice): `replace` already swaps mapped names in it. Then reread every step's narration and rewrite it for the prospect: their company, their use case, and the same numbers as the screens. Keep it natural spoken language, one or two short sentences per step, and roughly the original length, because playback gives each step about 65 ms per character. Don't put narration on steps where nothing should be said.
 
 5. **Pack and verify**
    ```bash
