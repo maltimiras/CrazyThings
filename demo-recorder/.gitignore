@@ -1,0 +1,3 @@
+# Working files of /video-to-demo (extracted frames, audio, transcript, comparisons)
+demos/*/video/
+node_modules/

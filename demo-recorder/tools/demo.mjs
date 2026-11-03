@@ -70,7 +70,15 @@ function readPlayer() {
 function save(data, out) {
   if (out.endsWith('.html') || out.endsWith('.htm')) {
     fs.mkdirSync(path.dirname(path.resolve(out)), { recursive: true });
-    fs.writeFileSync(out, assembleDemo({ ...data, ...readPlayer() }));
+    // Only embed assets something still references (e.g. video frames replaced by rebuilt HTML).
+    const used = new Set();
+    for (const t of [...Object.values(data.screens), ...Object.values(data.css || {})]) {
+      for (const m of t.matchAll(/demo-asset:(a\d+)/g)) used.add(m[1]);
+    }
+    const assets = Object.fromEntries(Object.entries(data.assets || {}).filter(([id]) => used.has(id)));
+    const dropped = Object.keys(data.assets || {}).length - Object.keys(assets).length;
+    if (dropped) console.log(`(left out ${dropped} unused asset${dropped === 1 ? '' : 's'})`);
+    fs.writeFileSync(out, assembleDemo({ ...data, assets, ...readPlayer() }));
     return;
   }
   fs.mkdirSync(path.join(out, 'screens'), { recursive: true });

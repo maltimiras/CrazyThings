@@ -37,6 +37,26 @@ Leave **Embed images & fonts** on (the default) so the file works offline and fo
 
 Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options (they override the export settings): `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
 
+## Convert a video demo (Claude Code)
+
+Have an older demo as a video with a voice-over? Claude Code can rebuild it as an HTML demo in the same style: the same player, cursor, zoom and subtitles, with editable screens and the narration as text per step.
+
+```bash
+cd demo-recorder
+export ELEVENLABS_API_KEY=…          # for the voice-over transcript
+claude
+> /video-to-demo ~/Videos/acme-walkthrough.mp4
+```
+
+Needs `ffmpeg` (`brew install ffmpeg` / `winget install ffmpeg` / `apt install ffmpeg`). Playwright is optional (`npm i -D playwright && npx playwright install chromium`); Claude uses it to compare its HTML with the video frames.
+
+How it works:
+1. `tools/video.mjs` extracts the key frames at each screen change, the audio and the transcript.
+2. It builds a skeleton demo that already plays as a slideshow.
+3. Claude rebuilds each screen as HTML from the frames, decides the clicks, typing and scrolling, places the narration, compares its HTML with the frames, and packs the `.demo.html`.
+
+The result can be personalized (`/personalize-demo`) or imported into the extension like any other demo. The screens are faithful rebuilds, not pixel copies. Logos, photos and complex charts are cropped from the video as images.
+
 ## Share a demo
 
 Export it with **Export HTML** and send the `.demo.html` file:

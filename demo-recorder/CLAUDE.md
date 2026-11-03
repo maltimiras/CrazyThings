@@ -77,6 +77,18 @@ Never edit the original recording in place. Work in `demos/<prospect-slug>/`.
 - Screens are inert snapshots: there are no scripts, and `<script>` tags inside a screen are not run.
 - To change the player, edit `extension/player/*`. Then `node tools/demo.mjs upgrade file.demo.html` re-packs any demo with the new player.
 
+## Converting a video demo
+
+Use `/video-to-demo <video>` (`.claude/commands/video-to-demo.md`) to turn a screen recording with a voice-over into a demo. `tools/video.mjs` does the mechanical part:
+- `prepare`: key frames, contact sheets, audio, viewport;
+- `transcribe`: ElevenLabs speech-to-text;
+- `scaffold`: a playable skeleton with narration per step;
+- `frames`: extra frames at given times;
+- `crop`: image assets from frames;
+- `compare`: video frame next to your HTML.
+
+You rebuild the screens as HTML with one shared `css/app.css` and define the steps. Placeholder screens carry `data-demo-placeholder`; none may remain at the end.
+
 ## Developing the extension
 
 - Load it unpacked from `extension/` (chrome://extensions → Developer mode → Load unpacked).
