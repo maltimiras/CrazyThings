@@ -57,6 +57,12 @@ How it works:
 2. It builds a skeleton demo that already plays as a slideshow.
 3. Claude rebuilds each screen as HTML from the frames, decides the clicks, typing and scrolling, places the narration, compares its HTML with the frames, and packs the `.demo.html`.
 
+If the transcript couldn't be made during the conversion (no key, or a network that blocks ElevenLabs), add it afterwards. Steps keep their video times, so each sentence lands on the right step:
+
+```bash
+node tools/video.mjs narrate demos/my-demo/my-demo.demo.html ~/Videos/my-demo.mp4 --lang es
+```
+
 The result can be personalized (`/personalize-demo`) or imported into the extension like any other demo. The screens are faithful rebuilds, not pixel copies. Logos, photos and complex charts are cropped from the video as images.
 
 ## Share a demo

@@ -13,7 +13,7 @@ Work in `demos/<slug>/` (slug from the video name). `<work>` = `demos/<slug>/vid
 1. Check `ffmpeg -version`. If it's missing, tell the user how to install it and stop.
 2. Run `node tools/video.mjs prepare <video> <work>`. Read `<work>/video.json`: duration, `viewport` (the CSS size the screens must have) and the key-frame list.
    - If the video zooms or crops (the UI doesn't fill the frame), or the guessed `dpr` looks wrong (UI text clearly too small or too large), rerun with `--dpr`.
-3. Run `node tools/video.mjs transcribe <work> --lang <es|ca|en…>`. The key is read from `ELEVENLABS_API_KEY`, or from a `.env` file (`ELEVENLABS_API_KEY=…`) in the video's folder, its parent folders, the work folder or the current folder. **Never print, copy or commit the key.** If no key is found, ask the user to add a `.env` next to their videos, or continue without narration and say so.
+3. Run `node tools/video.mjs transcribe <work> --lang <es|ca|en…>`. The key is read from `ELEVENLABS_API_KEY`, or from a `.env` file (`ELEVENLABS_API_KEY=…`) in the video's folder, its parent folders, the work folder or the current folder. **Never print, copy or commit the key.** If no key is found, or `api.elevenlabs.io` can't be reached (some cloud sessions block it), continue without narration: keep every step's `t` at its video time (ms), and tell the user to add the voice-over later with `node tools/video.mjs narrate <demo.html> <video> --lang <es|ca|en…>`.
 4. Run `node tools/video.mjs scaffold <work> --slug <slug> --title "<title>" --out <demo>`. The demo is already playable as a slideshow of frames. Read `<demo>/NOTES.md` (frames, times and narration per step).
 5. Look at the contact sheets `<work>/frames/sheet-*.png` (12 frames per sheet, in order) to understand the whole flow. Then open individual frames.
 
@@ -44,6 +44,7 @@ Go through consecutive frames and decide what the user did between them. Use `no
 | It changed by itself (loading, toast) | `change` |
 
 - Each step's `screen` is the state **before** its action. The next step shows the result.
+- Give every step `t` = the time in the video (ms) when it happens, so `narrate` can place the voice-over on it later.
 - Merge near-identical frames, and drop half-way transition frames. Add screens when an important state was only visible between key frames (extract it with `frames`).
 - Use unique target ids (`t1`, `t2`, …) across the demo.
 - Set every screen's `url` in `demo.json` (from the address bar if visible, otherwise a plausible `https://app.<company>.com/...`) and its `title`. The player shows the URL bar.

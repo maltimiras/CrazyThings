@@ -85,7 +85,8 @@ Use `/video-to-demo <video>` (`.claude/commands/video-to-demo.md`) to turn a scr
 - `scaffold`: a playable skeleton with narration per step;
 - `frames`: extra frames at given times;
 - `crop`: image assets from frames;
-- `compare`: video frame next to your HTML.
+- `compare`: video frame next to your HTML;
+- `narrate`: adds the voice-over to a finished demo later, by each step's video time `t`.
 
 You rebuild the screens as HTML with one shared `css/app.css` and define the steps. Placeholder screens carry `data-demo-placeholder`; none may remain at the end.
 

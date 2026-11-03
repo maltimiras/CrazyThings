@@ -9,6 +9,7 @@
 //   node tools/video.mjs frames     <work> 12.0,12.5,13.0          (extra frames at given times)
 //   node tools/video.mjs crop       <work> <frame.png> x y w h <name>   (image asset from a frame)
 //   node tools/video.mjs compare    <work>                         (needs Playwright)
+//   node tools/video.mjs narrate    <demo.html|dir> <video> [--lang es]   (add the voice-over to a finished demo)
 //
 // Requires ffmpeg and ffprobe on PATH. Node 18+.
 
@@ -18,6 +19,10 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseShowinfo, selectFrames, guessViewport, frameName, buildScaffold, resolveScreen, parseEnv } from './videolib.mjs';
+import { parseDemo, assembleDemo } from '../extension/lib/format.js';
+import { wordsToPhrases, assignPhrases } from '../extension/lib/narration.js';
+
+const PLAYER_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'extension', 'player');
 
 // ------------------------------------------------------------------ helpers
 function run(bin, args, { allowFail = false } = {}) {
@@ -120,18 +125,19 @@ function cmdPrepare(video, work, opts) {
 
 // The ElevenLabs key: the environment, or a .env file next to the video (or its parent folders,
 // or the current folder). Only the file path is ever printed, never the key.
-function findApiKey(work) {
+function findApiKey(work, videoPath) {
   if (process.env.ELEVENLABS_API_KEY) return { key: process.env.ELEVENLABS_API_KEY, from: 'ELEVENLABS_API_KEY' };
   const dirs = [];
-  let source = null;
-  try { source = loadVideo(work).source; } catch { /* prepare not run yet */ }
+  let source = videoPath ? path.resolve(videoPath) : null;
+  if (!source && work) { try { source = loadVideo(work).source; } catch { /* prepare not run yet */ } }
   for (let d = source ? path.dirname(source) : null, i = 0; d && i < 4; i++) {
     dirs.push(d);
     const up = path.dirname(d);
     if (up === d) break;
     d = up;
   }
-  dirs.push(path.resolve(work), process.cwd());
+  if (work) dirs.push(path.resolve(work));
+  dirs.push(process.cwd());
   for (const dir of [...new Set(dirs)]) {
     for (const name of ['.env', '.env.local', 'elevenlabs.env']) {
       const f = path.join(dir, name);
@@ -144,15 +150,25 @@ function findApiKey(work) {
   return null;
 }
 
-async function cmdTranscribe(work, opts) {
-  const found = findApiKey(work);
+function requireKey(work, videoPath) {
+  const found = findApiKey(work, videoPath);
   if (!found) {
     throw new Error('No ElevenLabs API key found. Set ELEVENLABS_API_KEY, or put a .env file next to the video containing:\n  ELEVENLABS_API_KEY=your_key');
   }
-  const key = found.key;
   console.log(`Using the ElevenLabs key from ${found.from}`);
+  return found.key;
+}
+
+async function cmdTranscribe(work, opts) {
+  const key = requireKey(work);
   const audio = path.join(work, 'audio.mp3');
   if (!fs.existsSync(audio)) throw new Error('No audio.mp3 in ' + work + ' (the video had no audio track?)');
+  const json = await speechToText(audio, key, opts);
+  writeJson(path.join(work, 'transcript.json'), { text: json.text || '', language_code: json.language_code || opts.lang || '', words: json.words || [] });
+  console.log(`Transcript: ${(json.words || []).filter((w) => !w.type || w.type === 'word').length} words → ${work}/transcript.json`);
+}
+
+async function speechToText(audio, key, opts) {
   const base = (process.env.ELEVENLABS_BASE_URL || 'https://api.elevenlabs.io').replace(/\/$/, '');
   const fd = new FormData();
   fd.append('file', new Blob([fs.readFileSync(audio)], { type: 'audio/mpeg' }), 'audio.mp3');
@@ -161,9 +177,49 @@ async function cmdTranscribe(work, opts) {
   if (opts.lang) fd.append('language_code', opts.lang);
   const res = await fetch(base + '/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': key }, body: fd });
   if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const json = await res.json();
-  writeJson(path.join(work, 'transcript.json'), { text: json.text || '', language_code: json.language_code || opts.lang || '', words: json.words || [] });
-  console.log(`Transcript: ${(json.words || []).filter((w) => !w.type || w.type === 'word').length} words → ${work}/transcript.json`);
+  return res.json();
+}
+
+// Add the voice-over as narration to a finished video-based demo (packed .demo.html or unpacked
+// folder). Step times (t, ms) are positions in the video, so each sentence lands on its step.
+async function cmdNarrate(target, video, opts) {
+  const isHtml = /\.html?$/i.test(target);
+  const data = isHtml ? parseDemo(fs.readFileSync(target, 'utf8')) : null;
+  const manifest = isHtml ? data.manifest : readJson(path.join(target, 'demo.json'));
+  let words;
+  if (opts.transcript) {
+    words = readJson(opts.transcript).words || [];
+  } else {
+    if (!video || !fs.existsSync(video)) throw new Error('Give the video file (or --transcript transcript.json).');
+    const key = requireKey(null, video);
+    const tmp = fs.mkdtempSync(path.join(fs.realpathSync(process.env.TMPDIR || '/tmp'), 'narrate-'));
+    const audio = path.join(tmp, 'audio.mp3');
+    ff(['-i', video, '-vn', '-ac', '1', '-b:a', '64k', audio]);
+    const json = await speechToText(audio, key, opts);
+    fs.rmSync(tmp, { recursive: true, force: true });
+    words = json.words || [];
+    const tOut = (isHtml ? target.replace(/\.html?$/i, '') : path.join(target, 'transcript')) + '.transcript.json';
+    writeJson(tOut, { text: json.text || '', language_code: json.language_code || opts.lang || '', words });
+    console.log(`Transcript saved → ${tOut}`);
+  }
+  const texts = assignPhrases(manifest.steps, { segments: [{ wall: 0, at: 0 }] }, wordsToPhrases(words));
+  let n = 0;
+  manifest.steps.forEach((s, i) => {
+    if (texts[i] && (opts.force || !s.narration)) { s.narration = texts[i]; n++; }
+  });
+  manifest.settings = { ...(manifest.settings || {}), subtitles: manifest.settings && manifest.settings.subtitles === false ? false : true };
+  if (isHtml) {
+    const out = opts.out || target;
+    fs.writeFileSync(out, assembleDemo({
+      ...data, manifest,
+      playerJs: fs.readFileSync(path.join(PLAYER_DIR, 'player.js'), 'utf8'),
+      playerCss: fs.readFileSync(path.join(PLAYER_DIR, 'player.css'), 'utf8'),
+    }));
+    console.log(`Narration on ${n} step(s) → ${out}`);
+  } else {
+    writeJson(path.join(target, 'demo.json'), manifest);
+    console.log(`Narration on ${n} step(s) → ${target}/demo.json (pack it with tools/demo.mjs pack)`);
+  }
 }
 
 function cmdScaffold(work, opts) {
@@ -263,6 +319,19 @@ async function cmdCompare(work) {
     if (!fs.existsSync(f) || !meta.frame) continue;
     await page.setViewportSize({ width: w, height: h });
     await page.setContent(resolveScreen(fs.readFileSync(f, 'utf8'), css, assets), { waitUntil: 'load' });
+    // Apply saved scroll positions (data-demo-scroll), as the player does.
+    await page.evaluate(() => {
+      const all = (root, out = []) => {
+        root.querySelectorAll('[data-demo-scroll]').forEach((e) => out.push(e));
+        root.querySelectorAll('*').forEach((e) => e.shadowRoot && all(e.shadowRoot, out));
+        return out;
+      };
+      for (const el of all(document)) {
+        const [t, l] = el.getAttribute('data-demo-scroll').split(',').map(Number);
+        if (el === document.documentElement) window.scrollTo(l || 0, t || 0);
+        else { el.scrollTop = t || 0; el.scrollLeft = l || 0; }
+      }
+    });
     const shot = (await page.screenshot()).toString('base64');
     const frame = fs.readFileSync(path.join(work, 'frames', meta.frame)).toString('base64');
     await page.setViewportSize({ width: w * 2 + 24, height: h + 40 });
@@ -290,6 +359,8 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--slug') opts.slug = argv[++i];
   else if (a === '--title') opts.title = argv[++i];
   else if (a === '--out') opts.out = argv[++i];
+  else if (a === '--transcript') opts.transcript = argv[++i];
+  else if (a === '--force') opts.force = true;
   else pos.push(a);
 }
 const [cmd, ...args] = pos;
@@ -303,6 +374,7 @@ try {
     case 'frames': need(2, 'frames <work> 12.0,12.5'); cmdFrames(args[0], args[1]); break;
     case 'crop': need(6, 'crop <work> <frame.png> x y w h [name]'); cmdCrop(args[0], args[1], +args[2], +args[3], +args[4], +args[5], args[6]); break;
     case 'compare': need(1, 'compare <work>'); await cmdCompare(args[0]); break;
+    case 'narrate': need(1, 'narrate <demo.html|dir> <video> [--lang es] [--out file] [--force] [--transcript t.json]'); await cmdNarrate(args[0], args[1], opts); break;
     default:
       console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
       process.exit(cmd ? 1 : 0);

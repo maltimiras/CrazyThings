@@ -98,6 +98,19 @@ const packed = path.join(OUT, 'demo', 'walkthrough.demo.html');
 const packOut = sh('node', ['tools/demo.mjs', 'pack', demoDir, packed]);
 assert(/left out 1 unused asset/.test(packOut), 'pack leaves out the replaced placeholder frame');
 
+// narrate: add the transcript to the finished (packed) demo; steps keep their video times.
+const narrated = path.join(OUT, 'demo', 'narrated.demo.html');
+fs.copyFileSync(packed, narrated);
+const m2 = JSON.parse(fs.readFileSync(path.join(demoDir, 'demo.json'), 'utf8'));
+delete m2.steps[2].narration;
+fs.writeFileSync(path.join(demoDir, 'demo.json'), JSON.stringify(m2, null, 2));
+sh('node', ['tools/demo.mjs', 'pack', demoDir, narrated]);
+tool(['narrate', narrated, '--transcript', path.join(work, 'transcript.json')]);
+const { parseDemo } = await import('../extension/lib/format.js');
+const nm = parseDemo(fs.readFileSync(narrated, 'utf8')).manifest;
+assert(nm.steps[2].narration === 'Y guardamos.' && nm.steps[1].narration === 'Abrimos una oportunidad.',
+  'narrate adds the voice-over to a finished demo by video time, keeping existing text');
+
 let chromium = null;
 try { ({ chromium } = createRequire(import.meta.url)('playwright')); } catch { /* optional */ }
 if (!chromium) { console.log('Playwright not installed: skipping compare and replay'); process.exit(0); }
