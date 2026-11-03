@@ -332,13 +332,17 @@ async function renderVoice(id, session) {
   const prefs = await chrome.storage.local.get(['elKey', 'elVoice']);
   const current = (session.voiceover && session.voiceover.voiceId) || prefs.elVoice || '';
   await renderVoiceInfo(id);
+  let loadSeq = 0;
   const load = async (refresh) => {
+    const my = ++loadSeq; // only the latest load updates the list (a slow first one must not undo ↻)
     status.className = 'muted';
     try {
       const { voices } = await cachedVoices(refresh);
+      if (my !== loadSeq) return;
       fillVoices(sel, voices, sel.value || current);
-      status.textContent = voices.length ? '' : '';
+      status.textContent = '';
     } catch (e) {
+      if (my !== loadSeq) return;
       status.className = 'bad';
       status.textContent = e.message || String(e);
       fillVoices(sel, [], current);
@@ -349,7 +353,6 @@ async function renderVoice(id, session) {
     status.innerHTML = 'Add your ElevenLabs API key in <a href="#settings">⚙ Settings</a> to generate the voice from the narration text.';
     return;
   }
-  await load(false);
   $('vo-reload').onclick = () => load(true);
   $('vo-gen').onclick = async () => {
     const all = $('vo-gen').textContent === 'Regenerate voice';
@@ -371,6 +374,7 @@ async function renderVoice(id, session) {
     refreshPreview(id);
     renderEditor(id);
   };
+  await load(false); // after wiring the buttons, so they work while the voice list loads
 }
 
 // Voice the narrated steps of a recording. Only steps without an up-to-date clip, unless `all`
