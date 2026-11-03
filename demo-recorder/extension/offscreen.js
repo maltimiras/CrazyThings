@@ -1,65 +1,20 @@
-// Offscreen document: records the microphone for narration while a demo is being recorded,
-// and (in Google Chrome) transcribes it live with the built-in speech recognition.
+// Offscreen document: records the microphone for narration while a demo is being recorded.
+// (Live transcription runs in the visible Narration panel, narration.js: Chrome's speech
+// recognition doesn't work in hidden documents.)
 import { db } from './lib/db.js';
+import { openMic, micLabel } from './lib/miclevel.js';
 
 let stream = null;
 let rec = null;
 let sessionId = null;
 let n = 0;
 const writes = new Set();
-let recog = null;
-let recogWanted = false;
-let lang = '';
 
-function send(msg) {
-  try { chrome.runtime.sendMessage(msg).catch(() => {}); } catch {}
-}
-
-// ---------- live speech recognition (Google Chrome only) ----------
-function startRecognition() {
-  const SR = self.webkitSpeechRecognition || self.SpeechRecognition;
-  if (!SR) { send({ type: 'transcript-status', status: 'unsupported' }); return; }
-  recogWanted = true;
-  if (recog) { try { recog.start(); } catch {} return; }
-  recog = new SR();
-  recog.continuous = true;
-  recog.interimResults = true;
-  recog.lang = lang || navigator.language || 'en-US';
-  let phraseStart = null;
-  recog.onresult = (e) => {
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const r = e.results[i];
-      // First (interim) result arrives a moment after speech starts.
-      if (phraseStart == null) phraseStart = Date.now() - 600;
-      if (r.isFinal) {
-        const text = (r[0] && r[0].transcript || '').trim();
-        if (text) send({ type: 'transcript', wall: phraseStart, text });
-        phraseStart = null;
-      }
-    }
-  };
-  recog.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'language-not-supported') {
-      recogWanted = false;
-      send({ type: 'transcript-status', status: 'error', error: e.error });
-    }
-  };
-  // Recognition stops by itself after silences: keep it going while recording.
-  recog.onend = () => { if (recogWanted) setTimeout(() => { try { recog.start(); } catch {} }, 250); };
-  try { recog.start(); } catch {}
-}
-
-function stopRecognition() {
-  recogWanted = false;
-  if (recog) { try { recog.stop(); } catch {} }
-}
-
-// ---------- recording ----------
 async function micStart(msg) {
   sessionId = msg.sessionId;
-  lang = msg.lang || '';
   n = 0;
-  stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  const opened = await openMic(msg.deviceId);
+  stream = opened.stream;
   const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find((t) => MediaRecorder.isTypeSupported(t)) || '';
   rec = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 48000 } : undefined);
   rec.ondataavailable = (e) => {
@@ -68,13 +23,10 @@ async function micStart(msg) {
     writes.add(p);
   };
   rec.start(1000);
-  const startedAt = Date.now();
-  if (msg.live !== false) startRecognition();
-  return { ok: true, mime: rec.mimeType, startedAt };
+  return { ok: true, mime: rec.mimeType, startedAt: Date.now(), micLabel: micLabel(stream), fallback: opened.fallback };
 }
 
 async function micStop() {
-  stopRecognition();
   if (rec && rec.state !== 'inactive') await new Promise((r) => { rec.onstop = r; rec.stop(); });
   const stoppedAt = Date.now();
   await Promise.all([...writes]);
@@ -89,11 +41,9 @@ async function handle(msg) {
     case 'mic-start': return micStart(msg);
     case 'mic-pause':
       if (rec && rec.state === 'recording') rec.pause();
-      stopRecognition();
       return { ok: true, at: Date.now() };
     case 'mic-resume':
       if (rec && rec.state === 'paused') rec.resume();
-      startRecognition();
       return { ok: true, at: Date.now() };
     case 'mic-stop': return micStop();
     default: return { error: 'unknown offscreen message ' + msg.type };

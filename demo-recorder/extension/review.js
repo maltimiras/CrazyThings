@@ -1,6 +1,7 @@
 import { db } from './lib/db.js';
 import { buildDemoHtml, describeStep, DEFAULT_SETTINGS } from './lib/build.js';
 import { assignPhrases, livePhrases, wordsToPhrases, mergeNarration } from './lib/narration.js';
+import { LANGUAGES, languageName, toIso639 } from './lib/miclevel.js';
 
 const $ = (id) => document.getElementById(id);
 let currentId = null;
@@ -116,6 +117,8 @@ async function renderEditor(id) {
 
   // ---------- settings (transcription) ----------
   const prefs = await chrome.storage.local.get(['elKey', 'elModel', 'elLang', 'narrationLang']);
+  const liveLang = main.querySelector('[data-pref=narrationLang]');
+  if (liveLang) liveLang.innerHTML = LANGUAGES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   for (const el of main.querySelectorAll('[data-pref]')) {
     const key = el.dataset.pref;
     el.value = prefs[key] || '';
@@ -169,8 +172,16 @@ async function renderNarration(id, session) {
   const src = { chrome: 'live Chrome transcript', elevenlabs: 'ElevenLabs transcript' }[session.narrationSource] || 'not transcribed yet';
   $('narr-info').textContent = `${fmtDur(audio.duration)} recorded${blob ? ' · ' + fmtSize(blob.size) : ''} · ${src}`;
   const live = session.liveTranscript || [];
+  const setup = session.narrationSetup || {};
   const status = [];
-  if (!live.length && session.liveStatus) status.push(`Live transcript unavailable (${session.liveStatus}): use ElevenLabs.`);
+  if (setup.micLabel) status.push(`Microphone: ${setup.micLabel}.`);
+  if (setup.lang !== undefined) status.push(`Language: ${languageName(setup.lang)}.`);
+  if (live.length) status.push(`Live transcript: ${live.length} sentence${live.length === 1 ? '' : 's'}.`);
+  else if (setup.live === false) status.push('Live transcript was off: use “Transcribe with ElevenLabs”.');
+  else if (session.liveStatus) status.push(`Live transcript failed (${session.liveStatus}): use “Transcribe with ElevenLabs”.`);
+  else status.push('No words came through the live transcript (was the Narration window closed?): use “Transcribe with ElevenLabs”.');
+  for (const w of setup.warnings || []) status.push(w);
+  $('narr-status').className = 'muted';
   $('narr-status').textContent = status.join(' ');
   if (blob) {
     const url = URL.createObjectURL(blob);
@@ -204,6 +215,9 @@ async function applyPhrases(id, phrases, source) {
 async function transcribe(id, blob) {
   const btn = $('transcribe');
   const { elKey, elModel, elLang } = await chrome.storage.local.get(['elKey', 'elModel', 'elLang']);
+  const recorded = ((await db.getSession(id)) || {}).narrationSetup || {};
+  // Language: the ElevenLabs setting, else the language chosen when recording (es-ES → es).
+  const langCode = elLang || toIso639(recorded.lang);
   btn.disabled = true;
   $('narr-status').className = 'muted';
   $('narr-status').textContent = 'Transcribing with ElevenLabs…';
@@ -212,7 +226,7 @@ async function transcribe(id, blob) {
     fd.append('file', blob, 'narration.webm');
     fd.append('model_id', elModel || 'scribe_v2');
     fd.append('timestamps_granularity', 'word');
-    if (elLang) fd.append('language_code', elLang);
+    if (langCode) fd.append('language_code', langCode);
     const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': elKey }, body: fd });
     if (!res.ok) {
       const hint = { 401: 'check the API key', 422: 'the request was rejected (model or language?)', 429: 'rate limit or quota reached' }[res.status] || '';

@@ -268,6 +268,33 @@ try {
   assert(restored.width === sizeTab.width && restored.height === sizeTab.height,
     `window restored after recording (${restored.width}×${restored.height})`);
 
+  // ---- popup narration setup: language, microphone list and the mic test (fake microphone)
+  const ms = await ctx.newPage();
+  await ms.goto(`chrome-extension://${extId}/mic-setup.html`);
+  await ms.click('#allow');
+  await ms.waitForFunction(() => /ready/.test(document.getElementById('msg').textContent), null, { timeout: 5000 });
+  const pop = await ctx.newPage();
+  pop.on('pageerror', (e) => errors.push('popup: ' + e.message));
+  await pop.goto(`chrome-extension://${extId}/popup.html`);
+  await pop.check('#narration');
+  await pop.waitForSelector('#narrbox:not([hidden])');
+  await pop.waitForFunction(() => !document.getElementById('mic').hidden && document.querySelectorAll('#mic option').length > 0, null, { timeout: 5000 });
+  const micNames = await pop.$$eval('#mic option', (os) => os.map((o) => o.textContent));
+  assert(micNames.length >= 1, 'popup lists the microphones: ' + micNames.join(', '));
+  await pop.selectOption('#lang', 'es-ES');
+  await pop.click('#testmic');
+  await pop.waitForFunction(() => /Hearing you/.test(document.getElementById('micstatus').textContent), null, { timeout: 8000 });
+  const lvl = await pop.$eval('#level', (el) => parseInt(el.style.width, 10) || 0);
+  await sleep(1500);
+  const heard = await pop.textContent('#heard');
+  await pop.screenshot({ path: path.join(OUT, 'popup-mictest.png') });
+  await pop.click('#testmic');
+  assert(true, `mic test hears the microphone (level ${lvl}%); live words: ${heard}`);
+  const saved = await pop.evaluate(() => chrome.storage.local.get(['narrationLang', 'recLive', 'recNarration']));
+  assert(saved.narrationLang === 'es-ES' && saved.recLive === true && saved.recNarration === true, 'popup saves language and narration options');
+  await pop.close();
+  await ms.close().catch(() => {});
+
   // ---- narration: record the (fake) microphone, pause/resume, transcribe with a stubbed
   //      ElevenLabs response, export subtitles, and keep words when a step is deleted
   const narPagePromise = ctx.waitForEvent('page');
@@ -276,6 +303,9 @@ try {
   await np.waitForSelector('user-chip');
   const rn = await ext.evaluate((tabId) => chrome.runtime.sendMessage({ type: 'start', tabId, narration: true }), narTab);
   assert(!rn.error && rn.state && rn.state.narration, 'narration recording started ' + JSON.stringify(rn.error || rn.warnings));
+  const panelOpen = () => ext.evaluate(async () =>
+    (await chrome.windows.getAll({ populate: true })).some((w) => (w.tabs || []).some((t) => (t.url || t.pendingUrl || '').includes('narration.html'))));
+  assert(await panelOpen(), 'the Narration window opens while recording');
   await np.bringToFront();
   await sleep(1500);
   await np.click('#new');
@@ -294,9 +324,12 @@ try {
     const { db } = await import('./lib/db.js');
     const s = await db.getSession(id);
     const b = await db.getAudioBlob(id);
-    return { audio: s.audio, size: b ? b.size : 0, type: b ? b.type : '' };
+    return { audio: s.audio, setup: s.narrationSetup, size: b ? b.size : 0, type: b ? b.type : '' };
   }, narSession);
   assert(aud.size > 1000 && /audio/.test(aud.type), `microphone audio stored (${aud.size} bytes, ${aud.type})`);
+  assert(aud.setup && aud.setup.micLabel && aud.setup.lang === 'es-ES' && aud.setup.live === true,
+    'recording keeps the narration setup ' + JSON.stringify(aud.setup));
+  assert(!(await panelOpen()), 'the Narration window closes when recording stops');
   assert(aud.audio.segments.length === 2 && aud.audio.duration > 4000 && aud.audio.duration < 9000,
     `pause is cut out of the audio timeline (${aud.audio.segments.length} segments, ${aud.audio.duration} ms)`);
 
@@ -373,6 +406,16 @@ try {
   }, narSession);
   assert(merged.includes('Welcome everyone. Create a deal.') || merged[ci - 1].endsWith('Create a deal.'),
     'deleting a step moves its narration to the previous step ' + JSON.stringify(merged.slice(0, ci + 1)));
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- a saved microphone that no longer exists falls back to the default one, with a warning
+  await ext.evaluate(() => chrome.storage.local.set({ recMicId: 'no-such-device', recMicLabel: 'Old USB mic', recLive: false }));
+  const rf = await ext.evaluate((tabId) => chrome.runtime.sendMessage({ type: 'start', tabId, narration: true }), narTab);
+  await sleep(800);
+  await ext.evaluate(() => chrome.runtime.sendMessage({ type: 'stop' }));
+  await sleep(600);
+  assert(!rf.error && rf.state.narration && rf.warnings.some((w) => /Old USB mic.*wasn't found/.test(w)),
+    'missing microphone falls back to the default: ' + JSON.stringify(rf.error || rf.warnings));
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
   console.log('\nAll good. Screenshots in', OUT);
 } finally {
