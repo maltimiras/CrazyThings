@@ -58,7 +58,9 @@ async function renderEditor(id) {
 
   const [steps, screens] = await Promise.all([db.getSteps(id), db.getScreens(id)]);
   const bytes = screens.reduce((n, s) => n + s.html.length, 0);
-  $('meta').textContent = `${fmtDate(session.createdAt)} · ${steps.length} steps · ${screens.length} raw snapshots (${fmtSize(bytes)}) · ${session.url}`;
+  const first = steps.length && screens.find((x) => x.id === steps[0].screen);
+  const vpText = first && first.viewport ? ` · ${first.viewport.w}×${first.viewport.h}` : '';
+  $('meta').textContent = `${fmtDate(session.createdAt)} · ${steps.length} steps${vpText} · ${screens.length} raw snapshots (${fmtSize(bytes)}) · ${session.url}`;
 
   const tbody = $('steps');
   steps.forEach((st, i) => {

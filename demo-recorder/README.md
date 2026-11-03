@@ -16,8 +16,8 @@ record in Chrome  ──►  review & caption  ──►  export demo.html  ─�
 
 ## Record
 
-1. Open your app in a normal tab and set the window to the size you want the demo to be.
-2. Click the toolbar icon, then **Start recording this tab**. A small `● REC` badge appears in the bottom-left of the page.
+1. Open your app in a normal tab.
+2. Click the toolbar icon. Under **Recording size**, pick the page size the demo should have (1280×720, 1440×900, 1920×1080, a custom size, or the current window). The window is resized so the page area is exactly that size, and put back afterwards if "Restore window size" is ticked. If the size doesn't fit your screen, or the page zoom isn't 100%, the popup says so. Then click **Start recording this tab**. A small `● REC` badge appears in the bottom-left of the page.
 3. Do the demo. Each click, typing session, special key (`Enter`, `Esc`, `Tab`, arrows, `Ctrl/⌘+…`), scroll, and settled DOM change becomes a step. Page navigations are followed automatically.
 4. Click **Stop & review**. The review page opens: delete noisy steps, add captions, set the export options (autoplay or guided, start automatically, speed, loop, control bar, browser frame, cursor, key-press overlay, captions, background, auto-zoom), then **Preview** or **Export HTML**.
 

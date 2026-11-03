@@ -35,8 +35,8 @@ const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dr-profile-'));
 const ctx = await chromium.launchPersistentContext(userDir, {
   channel: 'chromium',
   headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
-  viewport: { width: 1280, height: 800 },
+  args: ['--window-size=1280,900', '--screen-info={1920x1200}', `--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+  viewport: null, // real window sizes, so the recording-size feature can resize the window
 });
 
 try {
@@ -238,6 +238,33 @@ try {
   }), zinfo.change);
   assert(Math.abs(afterChange - 1) < 0.01, `zooms back out on a page update (scale ${afterChange})`);
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- recording size: resize the window so the page area is exactly 1100×720, record, restore
+  // (uses a tab opened by Chrome itself: pages created by Playwright have their viewport pinned)
+  const sizeTab = await ext.evaluate(async (url) => {
+    const t = await chrome.tabs.create({ url, active: true });
+    for (let i = 0; i < 50 && (await chrome.tabs.get(t.id)).status !== 'complete'; i++) await new Promise((r) => setTimeout(r, 100));
+    const w = await chrome.windows.get(t.windowId);
+    return { id: t.id, windowId: t.windowId, width: w.width, height: w.height };
+  }, appUrl);
+  const tooBig = await ext.evaluate((tabId) => chrome.runtime.sendMessage({ type: 'resize', tabId, w: 5000, h: 3000 }), sizeTab.id);
+  assert(!tooBig.error && tooBig.warnings.length === 1 && /doesn't fit/.test(tooBig.warnings[0]),
+    'a size larger than the screen gives a warning, not an error: ' + (tooBig.error || tooBig.warnings[0]));
+  const rs = await ext.evaluate((tabId) => chrome.runtime.sendMessage({ type: 'start', tabId, size: { w: 1100, h: 720 }, restore: true }), sizeTab.id);
+  assert(!rs.error && rs.resized && rs.resized.actual.w === 1100 && rs.resized.actual.h === 720,
+    'window resized so the page is exactly 1100×720 ' + JSON.stringify(rs.resized && rs.resized.actual || rs.error));
+  await sleep(1500);
+  const sizeSession = (await ext.evaluate(() => chrome.runtime.sendMessage({ type: 'getState' }))).state.sessionId;
+  await ext.evaluate(() => chrome.runtime.sendMessage({ type: 'stop' }));
+  await sleep(600);
+  const sizeVp = await ext.evaluate(async (id) => {
+    const { buildDemoData } = await import('./lib/build.js');
+    return (await buildDemoData(id)).manifest.viewport;
+  }, sizeSession);
+  assert(sizeVp && sizeVp.w === 1100 && sizeVp.h === 720, 'export plays at the recorded size ' + JSON.stringify(sizeVp));
+  const restored = await ext.evaluate((winId) => chrome.windows.get(winId).then((w) => ({ width: w.width, height: w.height })), sizeTab.windowId);
+  assert(restored.width === sizeTab.width && restored.height === sizeTab.height,
+    `window restored after recording (${restored.width}×${restored.height})`);
   console.log('\nAll good. Screenshots in', OUT);
 } finally {
   await ctx.close();
