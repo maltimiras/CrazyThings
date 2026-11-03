@@ -37,6 +37,15 @@ Leave **Embed images & fonts** on (the default) so the file works offline and fo
 
 Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options (they override the export settings): `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
 
+## Share a demo
+
+Export it with **Export HTML** and send the `.demo.html` file:
+
+- **To watch it:** anyone can open the file in a browser. No extension or login needed.
+- **To edit it in their own Demo Recorder:** they click **⬆ Import demo** at the top of the Recordings list in the review page, or drop the file there. The popup also has an **Import demo…** button. The demo then becomes a normal recording they can preview, edit (steps, captions, narration, zoom, export options) and export again.
+- Demos personalized with Claude Code can be imported the same way, to check or tweak them before sending.
+- The narration **text** travels with the file; the original narration **audio** doesn't.
+
 ## Personalize with Claude Code
 
 ```bash

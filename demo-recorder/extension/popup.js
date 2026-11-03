@@ -174,6 +174,7 @@ $('pause').onclick = guard(async () => {
 });
 $('stop').onclick = guard(() => call({ type: 'stop' }));
 $('library').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('review.html') });
+$('importdemo').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('review.html#import') });
 
 $('resize').onclick = guard(async () => {
   const size = chosenSize();

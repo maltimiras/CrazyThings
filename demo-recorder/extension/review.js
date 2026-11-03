@@ -2,6 +2,7 @@ import { db } from './lib/db.js';
 import { buildDemoHtml, describeStep, DEFAULT_SETTINGS } from './lib/build.js';
 import { assignPhrases, livePhrases, wordsToPhrases, mergeNarration } from './lib/narration.js';
 import { LANGUAGES, languageName, toIso639 } from './lib/miclevel.js';
+import { importDemo } from './lib/import.js';
 
 const $ = (id) => document.getElementById(id);
 let currentId = null;
@@ -246,5 +247,55 @@ async function transcribe(id, blob) {
   }
 }
 
-window.addEventListener('hashchange', () => renderEditor(location.hash.slice(1)));
-renderEditor(location.hash.slice(1));
+// ---------- import a shared .demo.html ----------
+async function importFile(file) {
+  const msg = $('import-msg');
+  msg.className = '';
+  msg.textContent = `Importing ${file.name}…`;
+  try {
+    const id = crypto.randomUUID();
+    const { session, screens, steps, css, warnings } = await importDemo(await file.text(), {
+      sessionId: id,
+      existingCss: (key) => db.getCss(key),
+    });
+    for (const [k, text] of Object.entries(css)) await db.putCss(k, text);
+    for (const s of screens) await db.putScreen(s);
+    for (const st of steps) await db.addStep(st); // in order: keys follow the demo's step order
+    await db.putSession(session);
+    msg.className = warnings.length ? 'warn' : '';
+    msg.textContent = warnings.length ? warnings.join(' ') : `Imported “${session.title}” (${steps.length} steps).`;
+    location.hash = id;
+  } catch (e) {
+    msg.className = 'bad';
+    msg.textContent = e.message || String(e);
+  }
+}
+
+$('import-btn').onclick = () => $('import-file').click();
+$('import-file').onchange = () => {
+  const f = $('import-file').files[0];
+  $('import-file').value = '';
+  if (f) importFile(f);
+};
+const aside = $('aside');
+aside.addEventListener('dragover', (e) => { e.preventDefault(); aside.classList.add('drop'); });
+aside.addEventListener('dragleave', () => aside.classList.remove('drop'));
+aside.addEventListener('drop', (e) => {
+  e.preventDefault();
+  aside.classList.remove('drop');
+  const f = e.dataTransfer.files[0];
+  if (f) importFile(f);
+});
+
+function route() {
+  const h = location.hash.slice(1);
+  if (h === 'import') {
+    // Opened from the popup's "Import demo…": open the file picker (may need a click if the browser blocks it).
+    $('import-msg').textContent = 'Choose a .demo.html file to import.';
+    try { $('import-file').showPicker(); } catch { /* needs a user click: the button is right there */ }
+    return renderEditor('');
+  }
+  return renderEditor(h);
+}
+window.addEventListener('hashchange', route);
+route();

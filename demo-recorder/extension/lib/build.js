@@ -39,7 +39,7 @@ export async function loadSession(sessionId) {
   return { session, steps, screens };
 }
 
-// Build manifest + screens + css (no assets yet).
+// Build manifest + screens + css (+ assets carried by imported recordings).
 export async function buildDemoData(sessionId) {
   const { session, steps, screens: rawScreens } = await loadSession(sessionId);
   if (!session) throw new Error('Recording not found');
@@ -101,7 +101,8 @@ export async function buildDemoData(sessionId) {
     screens: screenMeta,
     steps: outSteps,
   };
-  return { manifest, screens, css, assets: {} };
+  // Imported recordings carry their embedded images/fonts (demo-asset:aN references).
+  return { manifest, screens, css, assets: { ...(session.assets || {}) } };
 }
 
 // ---------------------------------------------------------------------------
@@ -165,7 +166,9 @@ export async function inlineAssets(data, { onProgress, maxBytes = 8 * 1024 * 102
 
   const list = [...urls];
   const map = new Map();
-  const assets = {};
+  const assets = { ...(data.assets || {}) };
+  // Number new assets after any already embedded ones (imported recordings).
+  const firstFree = 1 + Math.max(0, ...Object.keys(assets).map((k) => parseInt(k.slice(1), 10) || 0));
   let done = 0;
   let i = 0;
   async function worker() {
@@ -176,7 +179,7 @@ export async function inlineAssets(data, { onProgress, maxBytes = 8 * 1024 * 102
         if (res.ok) {
           const blob = await res.blob();
           if (blob.size <= maxBytes) {
-            const id = 'a' + (map.size + 1);
+            const id = 'a' + (firstFree + map.size);
             map.set(url, id);
             assets[id] = await blobToDataUrl(blob);
           }

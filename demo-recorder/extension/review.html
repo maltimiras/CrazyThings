@@ -9,6 +9,12 @@
     body { margin: 0; font: 14px/1.45 system-ui, -apple-system, sans-serif; color: #111827; background: #f8fafc; display: grid; grid-template-columns: 300px 1fr; height: 100vh; }
     aside { border-right: 1px solid var(--b); background: #fff; overflow: auto; }
     aside h1 { font-size: 15px; margin: 0; padding: 16px; border-bottom: 1px solid var(--b); }
+    .import { padding: 12px 16px; border-bottom: 1px solid var(--b); display: grid; gap: 6px; }
+    .import button { width: 100%; }
+    aside.drop { outline: 3px dashed var(--p); outline-offset: -6px; background: #eef2ff; }
+    #import-msg { font-size: 12px; }
+    #import-msg.bad { color: #b91c1c; }
+    #import-msg.warn { color: #b45309; }
     .sess { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
     .sess:hover { background: #f8fafc; }
     .sess.on { background: #eef2ff; }
@@ -58,8 +64,14 @@
   </style>
 </head>
 <body>
-  <aside>
+  <aside id="aside">
     <h1>Recordings</h1>
+    <div class="import">
+      <button id="import-btn">⬆ Import demo</button>
+      <input type="file" id="import-file" accept=".html,.htm,text/html" hidden>
+      <div class="muted">or drop a .demo.html file here</div>
+      <div id="import-msg"></div>
+    </div>
     <div id="sessions"></div>
   </aside>
   <main id="main">
