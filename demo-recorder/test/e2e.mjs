@@ -469,7 +469,8 @@ try {
   await rt.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
   await rt.waitForSelector('#steps td.d input');
   await rt.selectOption('[data-setting=timing]', 'recorded');
-  await rt.waitForSelector('#steps td.d input');
+  // The page re-renders after the change: wait for the new rows (placeholder shows the recorded length).
+  await rt.waitForFunction(() => { const el = document.querySelector('#steps tr:nth-child(2) td.d input'); return el && el.placeholder !== '⏱ auto'; });
   const ph = await rt.$eval('#steps tr:nth-child(2) td.d input', (el) => el.placeholder);
   await rt.fill('#steps tr:nth-child(2) td.d input', '4');
   await rt.press('#steps tr:nth-child(2) td.d input', 'Tab');
@@ -628,6 +629,41 @@ try {
   const afterPause = await p5.evaluate(() => window.demoPlayer.voice);
   assert(spoke.v && /^data:audio\/mpeg/.test(spoke.v.src) && spoke.sub.length > 0 && afterPause === null, 'the player speaks each clip with its subtitle, and pause stops it');
   await p5.close();
+
+  // "As recorded" pace follows the voice: the stretch from one voiced step to the next lasts as long as its clip.
+  const clipId = voSteps[0].voice;
+  const fitMan = { ...voParsed.manifest, settings: { ...voParsed.manifest.settings, timing: 'recorded', autoStart: false, zoom: false },
+    steps: [
+      { id: 1, type: 'start', screen: voParsed.manifest.steps[0].screen, t: 0 },
+      { id: 2, type: 'change', screen: voParsed.manifest.steps[0].screen, t: 1000, narration: 'One.', voice: clipId, voiceMs: 1600, voiceText: 'One.' },
+      { id: 3, type: 'change', screen: voParsed.manifest.steps[0].screen, t: 3000 },
+      { id: 4, type: 'change', screen: voParsed.manifest.steps[0].screen, t: 5000, narration: 'Two.', voice: clipId, voiceMs: 1600, voiceText: 'Two.' },
+      { id: 5, type: 'end', screen: voParsed.manifest.steps[0].screen, t: 8000 },
+    ] };
+  const file6 = path.join(OUT, 'voice-fit.demo.html');
+  fs.writeFileSync(file6, assembleDemo({ ...voParsed, manifest: fitMan, playerJs: fs.readFileSync(path.join(EXT, 'player', 'player.js'), 'utf8'), playerCss: fs.readFileSync(path.join(EXT, 'player', 'player.css'), 'utf8') }));
+  const fitRun = async (q) => {
+    const p6 = await ctx.newPage();
+    p6.on('pageerror', (e) => errors.push('voice fit: ' + e.message));
+    await p6.goto('file://' + file6 + q);
+    await p6.waitForFunction(() => window.demoPlayer);
+    const at = await p6.evaluate(() => new Promise((res) => {
+      const at = {}; const t0 = performance.now();
+      window.demoPlayer.play();
+      (function tick() {
+        const i = window.demoPlayer.index;
+        if (at[i] == null) at[i] = performance.now() - t0;
+        if (i >= 3 || performance.now() - t0 > 8000) return res(at);
+        requestAnimationFrame(tick);
+      })();
+    }));
+    await p6.close();
+    return at[3] - at[1];
+  };
+  const fitted = await fitRun('?speed=2');
+  const unfitted = await fitRun('?speed=2&voice=0');
+  assert(Math.abs(fitted - 1000) < 250 && Math.abs(unfitted - 2000) < 300,
+    `"As recorded" timing is fitted to the voice clips (${Math.round(fitted)} ms at 2×, expected ≈1000; ${Math.round(unfitted)} ms without voice, expected ≈2000)`);
 
   // Edit the narration → that clip is outdated (not exported) until regenerated.
   const firstNar = await vp.evaluate(() => [...document.querySelectorAll('textarea.nar')].findIndex((t) => t.value));

@@ -24,11 +24,12 @@ const demo = () => ({
       { id: 3, type: 'type', screen: 's1', target: 't2', from: 'Pil', text: 'Pilot plan', narration: 'Give it a name.' },
     ],
   },
+  css: { c1: '.ed:empty::before{content:attr(data-ph)}' },
   screens: {
     s1: '<html><head><title>Pipeline</title><style>.a{content:"New deal"}</style></head><body>' +
       '<button data-demo-target="t1" title="New deal" class="btn">  New deal </button>' +
       '<input data-demo-target="t2" placeholder="Deal name" value="">' +
-      '<span>jane@acme.com</span><b>$1,200</b><p>Owner: <i>Jane Cooper</i></p></body></html>',
+      '<div class="ed" data-ph="Describe the deal" data-id="x-12"></div><span>jane@acme.com</span><b>$1,200</b><p>Owner: <i>Jane Cooper</i></p></body></html>',
   },
 });
 
@@ -39,6 +40,7 @@ test('collectTexts lists each visible string once, narration as voice', () => {
   assert.equal(texts.filter((t) => t === 'New deal').length, 1);
   assert.ok(!texts.includes('jane@acme.com') && !texts.includes('$1,200'), 'emails and numbers are not sent');
   assert.ok(!texts.some((t) => t.includes('content')), 'CSS is not text');
+  assert.ok(texts.includes('Describe the deal') && !texts.includes('x-12'), 'attributes shown by CSS attr() are text, other data-* are not');
   assert.equal(items.find((i) => i.text === 'Give it a name.').kind, 'voice');
   assert.ok(!collectTexts(demo(), { screens: false }).some((i) => i.text === 'Owner:'));
 });

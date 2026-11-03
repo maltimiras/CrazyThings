@@ -115,7 +115,7 @@ While recording, a small **Narration** window shows the volume bar and your word
 1. Pick a voice. The list comes from your ElevenLabs account; set the default voice and the model in ⚙ Settings.
 2. Click **Generate voice**.
 
-Each step gets a clip (▶ to listen to it next to its text). The clips are embedded in the export, and the player speaks them with the subtitles. Each step lasts at least as long as its sentence, and a sentence is never cut off by the next one. The **Voice-over audio** export option (or `?voice=0`) turns the sound off.
+Each step gets a clip (▶ to listen to it next to its text). The clips are embedded in the export, and the player speaks them with the subtitles. Each step lasts at least as long as its sentence, and a sentence is never cut off by the next one. With **As recorded** pace (video conversions), the timing is fitted to the new voice. Each stretch from one sentence to the next is stretched or shortened to the clip's length, so the screens change at the same point of the sentence as in the original, even in another language. The **Voice-over audio** export option (or `?voice=0`) turns the sound off.
 
 If you edit a step's text afterwards, its clip is marked outdated. **Voice the rest** redoes only those steps. The key needs the **Text to Speech** and **Voices (read)** permissions; it's the same key as for transcription.
 

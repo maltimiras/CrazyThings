@@ -430,15 +430,43 @@
 
   // How long a step lasts (video/recording ms), or null for the natural, animation-driven pace.
   // step.duration overrides; in "recorded" timing it's the gap to the next step's original time.
+  function recordedGap(i) {
+    var s = steps[i], n = steps[i + 1];
+    if (n && typeof n.t === 'number' && typeof s.t === 'number') return Math.max(250, n.t - s.t);
+    return s.hold || 2000;
+  }
   function stepDuration(i) {
     var s = steps[i];
     if (typeof s.duration === 'number' && s.duration > 0) return s.duration;
-    if (settings.timing === 'recorded') {
-      var n = steps[i + 1];
-      if (n && typeof n.t === 'number' && typeof s.t === 'number') return Math.max(250, n.t - s.t);
-      return s.hold || 2000;
-    }
+    if (settings.timing === 'recorded') return Math.max(250, Math.round(recordedGap(i) * voiceFit()[i]));
     return null;
+  }
+  // Fit the recorded timing to the voice clips: the stretch from one voiced step to the next is
+  // scaled so it lasts as long as that clip (plus a short pause). Screens then change at the same
+  // point of the sentence as in the original, whatever the new voice's (or language's) pace.
+  var VOICE_PAUSE = 400;
+  var fitCache = null;
+  function voiceFit() {
+    if (fitCache) return fitCache;
+    fitCache = steps.map(function () { return 1; });
+    if (!hasVoice) return fitCache;
+    var starts = [];
+    steps.forEach(function (s, i) { if (s.voice && src.assets[s.voice] && s.voiceMs) starts.push(i); });
+    starts.forEach(function (a, k) {
+      var b = k + 1 < starts.length ? starts[k + 1] : steps.length;
+      var free = 0, fixed = 0;
+      for (var j = a; j < b; j++) {
+        if (typeof steps[j].duration === 'number' && steps[j].duration > 0) fixed += steps[j].duration;
+        else free += recordedGap(j);
+      }
+      if (!free) return;
+      // The last stretch only needs to hold the clip; earlier ones match it exactly.
+      var want = steps[a].voiceMs + VOICE_PAUSE - fixed;
+      if (b === steps.length && want < free) return;
+      var f = Math.max(0.5, want / free);
+      for (var j2 = a; j2 < b; j2++) fitCache[j2] = f;
+    });
+    return fitCache;
   }
   var typingBudget = null; // ms available for typing in a timed step
   // Roughly how long the narration takes to say (~15 characters per second).

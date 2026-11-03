@@ -35,7 +35,7 @@ An exported demo is one HTML file with these `<script>` data blocks (none of the
 
 Also in `demo-data`: `lang` (ISO code of the demo's language, set by translations) and `voiceover` (`{ voiceId, name, model }`: the ElevenLabs voice used for the clips).
 
-**Voice playback:** a clip keeps playing over the following steps that have no clip of their own. The next step with a clip waits until the previous clip has finished, so sentences are never cut off. In natural pace, a voiced step lasts at least as long as its clip.
+**Voice playback:** a clip keeps playing over the following steps that have no clip of their own. The next step with a clip waits until the previous clip has finished, so sentences are never cut off. In natural pace, a voiced step lasts at least as long as its clip. In `recorded` pace the timing is **fitted to the voice**: the stretch from one voiced step to the next is scaled to that clip's length (`voiceMs` + 0.4 s pause), so screens change at the same point of the sentence as in the original, whatever the voice or language. Explicit `duration`s are kept, and `?voice=0` plays the original timing.
 
 ## Personalization workflow
 

@@ -10,7 +10,7 @@ const STEP_TEXT = ['label', 'note', 'text', 'from'];
 const worth = (t) => /\p{L}/u.test(t) && !/^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t) && !/^(https?:|www\.)\S+$/i.test(t);
 const split = (s) => { const m = s.match(/^(\s*)([\s\S]*?)(\s*)$/); return [m[1], m[2], m[3]]; };
 
-function walkScreen(html, fn) {
+function walkScreen(html, fn, cssAttrs) {
   // fn(text, kind) → replacement text or undefined (keep). Text nodes and visible attributes only.
   return visitHtml(html,
     (raw) => {
@@ -20,7 +20,7 @@ function walkScreen(html, fn) {
       return t == null || t === core ? raw : lead + escText(t) + trail;
     },
     (raw, name) => {
-      if (!TEXT_ATTRS.test(name)) return raw;
+      if (!TEXT_ATTRS.test(name) && !cssAttrs.has(name.toLowerCase())) return raw;
       const v = decode(raw).trim();
       if (!v || !worth(v)) return raw;
       const t = fn(v, 'ui');
@@ -45,14 +45,21 @@ export function mapDemoTexts(data, fn, { screens = true } = {}) {
     for (const k of STEP_TEXT) if (typeof s[k] === 'string') s[k] = one(s[k], 'ui');
     if (typeof s.narration === 'string') s.narration = one(s.narration, 'voice');
   }
-  if (screens) for (const id of Object.keys(data.screens || {})) data.screens[id] = walkScreen(data.screens[id], fn);
+  if (screens) {
+    // Attributes the CSS shows on screen with content: attr(x) (e.g. custom placeholders) are text too.
+    const cssAttrs = new Set();
+    for (const t of [...Object.values(data.css || {}), ...Object.values(data.screens || {})]) {
+      for (const m of String(t).matchAll(/attr\(\s*([\w-]+)/g)) cssAttrs.add(m[1].toLowerCase());
+    }
+    for (const id of Object.keys(data.screens || {})) data.screens[id] = walkScreen(data.screens[id], fn, cssAttrs);
+  }
   return data;
 }
 
 // Distinct strings to translate, in order of first appearance: [{ text, kind }].
 export function collectTexts(data, opts) {
   const seen = new Map();
-  const copy = { manifest: JSON.parse(JSON.stringify(data.manifest)), screens: { ...(data.screens || {}) } };
+  const copy = { manifest: JSON.parse(JSON.stringify(data.manifest)), screens: { ...(data.screens || {}) }, css: data.css };
   mapDemoTexts(copy, (text, kind) => {
     const e = seen.get(text);
     if (!e) seen.set(text, { text, kind });
