@@ -7,6 +7,8 @@ import { importDemo } from './lib/import.js';
 const $ = (id) => document.getElementById(id);
 let currentId = null;
 
+// Tell an open Preview tab of this recording to reload with the change.
+const refreshPreview = (id) => chrome.runtime.sendMessage({ type: 'preview-refresh', id }).catch(() => {});
 const fmtDate = (t) => new Date(t).toLocaleString();
 const fmtSize = (n) => (n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB');
 const fmtDur = (ms) => { const s = Math.round((ms || 0) / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -55,6 +57,8 @@ async function renderEditor(id) {
         : typeof def === 'number' ? Number(el.value) : el.value;
       session.settings = { ...settings };
       await db.putSession(session);
+      refreshPreview(id);
+      if (key === 'timing') renderEditor(id); // duration placeholders depend on the pace
     };
   }
   $('inline').checked = session.exportInline !== false;
@@ -72,7 +76,22 @@ async function renderEditor(id) {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td class="n">${i + 1}</td><td class="t"><span class="tag ${st.type}">${st.type}</span></td>
       <td><div class="desc"></div></td><td class="note"><textarea class="cap" placeholder="Caption (optional)"></textarea><textarea class="nar" placeholder="🎙 Narration (spoken text)"></textarea></td>
-      <td class="z"></td><td class="x"><button title="Delete step">✕</button></td>`;
+      <td class="z"></td><td class="d"></td><td class="x"><button title="Delete step">✕</button></td>`;
+    // Per-step duration (seconds). Empty = automatic: the recorded gap in "As recorded" pace, else natural.
+    const next = steps[i + 1];
+    const gap = next && typeof next.t === 'number' && typeof st.t === 'number' ? (next.t - st.t) / 1000 : null;
+    const dur = document.createElement('input');
+    dur.type = 'number'; dur.min = '0.2'; dur.step = '0.1';
+    dur.title = 'How long this step lasts, in seconds (empty = automatic)';
+    dur.placeholder = settings.timing === 'recorded' && gap != null ? '⏱ ' + gap.toFixed(1) : '⏱ auto';
+    dur.value = typeof st.duration === 'number' ? (st.duration / 1000).toFixed(1) : '';
+    dur.onchange = async () => {
+      const v = parseFloat(dur.value);
+      if (v > 0) st.duration = Math.round(v * 1000); else { delete st.duration; dur.value = ''; }
+      await db.putStep(st);
+      refreshPreview(id);
+    };
+    tr.querySelector('td.d').appendChild(dur);
     if (st.type === 'click' || st.type === 'type') {
       // Per-step zoom: '' = follow the export setting, 'off' = never zoom this step, number = custom level.
       const sel = document.createElement('select');
@@ -84,6 +103,7 @@ async function renderEditor(id) {
         if (sel.value === '') delete st.zoom;
         else st.zoom = sel.value === 'off' ? false : Number(sel.value);
         await db.putStep(st);
+        refreshPreview(id);
       };
       tr.querySelector('td.z').appendChild(sel);
     }
@@ -91,10 +111,10 @@ async function renderEditor(id) {
     tr.querySelector('.desc').title = describeStep(st);
     const ta = tr.querySelector('textarea.cap');
     ta.value = st.note || '';
-    ta.onchange = async () => { st.note = ta.value.trim() || undefined; await db.putStep(st); };
+    ta.onchange = async () => { st.note = ta.value.trim() || undefined; await db.putStep(st); refreshPreview(id); };
     const nar = tr.querySelector('textarea.nar');
     nar.value = st.narration || '';
-    nar.onchange = async () => { st.narration = nar.value.trim() || undefined; await db.putStep(st); };
+    nar.onchange = async () => { st.narration = nar.value.trim() || undefined; await db.putStep(st); refreshPreview(id); };
     const row = { st, tr, nar };
     rows.push(row);
     tr.querySelector('td.x button').onclick = async () => {
@@ -109,6 +129,7 @@ async function renderEditor(id) {
       rows.splice(k, 1);
       await db.deleteStep(st.seq);
       tr.remove();
+      refreshPreview(id);
     };
     tbody.appendChild(tr);
   });

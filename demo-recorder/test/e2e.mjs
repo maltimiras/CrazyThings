@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { parseDemo } from '../extension/lib/format.js';
+import { parseDemo, assembleDemo } from '../extension/lib/format.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -457,6 +457,67 @@ try {
   await imp.setInputFiles('#import-file', { name: 'notes.html', mimeType: 'text/html', buffer: Buffer.from('<html><body>hi</body></html>') });
   await imp.waitForFunction(() => document.getElementById('import-msg').className === 'bad', null, { timeout: 5000 });
   assert(/isn't a Demo Recorder export/.test(await imp.textContent('#import-msg')), 'a non-demo file is rejected with a clear message');
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- timing: "As recorded" pace + a per-step duration set on the review page; preview auto-refresh
+  const pv = await ctx.newPage();
+  pv.on('pageerror', (e) => errors.push('preview: ' + e.message));
+  await pv.goto(`chrome-extension://${extId}/preview.html#${sessionId}`);
+  await pv.waitForFunction(() => window.demoPlayer);
+  await pv.evaluate(() => { window.__before = 1; });
+  const rt = await ctx.newPage();
+  await rt.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
+  await rt.waitForSelector('#steps td.d input');
+  await rt.selectOption('[data-setting=timing]', 'recorded');
+  await rt.waitForSelector('#steps td.d input');
+  const ph = await rt.$eval('#steps tr:nth-child(2) td.d input', (el) => el.placeholder);
+  await rt.fill('#steps tr:nth-child(2) td.d input', '4');
+  await rt.press('#steps tr:nth-child(2) td.d input', 'Tab');
+  await pv.waitForFunction(() => window.__before === undefined && window.demoPlayer, null, { timeout: 8000 });
+  assert(/⏱ \d+\.\d/.test(ph), `the review page shows each step's recorded length (${ph}) and the preview reloads after an edit`);
+  const tm = await rt.evaluate(async (id) => {
+    const { buildDemoData } = await import('./lib/build.js');
+    const d = await buildDemoData(id);
+    return { timing: d.manifest.settings.timing, dur: d.manifest.steps[1].duration };
+  }, sessionId);
+  assert(tm.timing === 'recorded' && tm.dur === 4000, 'Pace and step duration are saved into the export ' + JSON.stringify(tm));
+  await pv.close();
+  await rt.close();
+
+  // A sentence spoken over several steps stays as a subtitle until it ends; steps keep their recorded length.
+  const base = parseDemo(fs.readFileSync(file, 'utf8'));
+  const sid = base.manifest.steps[0].screen;
+  const tman = { ...base.manifest, settings: { ...base.manifest.settings, timing: 'recorded', subtitles: true, autoStart: false, zoom: false },
+    steps: [
+      { id: 1, type: 'start', screen: sid, t: 0 },
+      { id: 2, type: 'change', screen: sid, t: 3000, narration: 'A sentence that is spoken over two steps.', narrationEnd: 8000 },
+      { id: 3, type: 'change', screen: sid, t: 3500 },
+      { id: 4, type: 'end', screen: sid, t: 9000 },
+    ] };
+  const tfile = path.join(OUT, 'timing.demo.html');
+  fs.writeFileSync(tfile, assembleDemo({ ...base, manifest: tman, playerJs: fs.readFileSync(path.join(EXT, 'player', 'player.js'), 'utf8'), playerCss: fs.readFileSync(path.join(EXT, 'player', 'player.css'), 'utf8') }));
+  const tp = await ctx.newPage();
+  tp.on('pageerror', (e) => errors.push('timing: ' + e.message));
+  await tp.goto('file://' + tfile + '?speed=4');
+  await tp.bringToFront();
+  await tp.waitForFunction(() => window.demoPlayer);
+  const tr = await tp.evaluate(() => new Promise((res) => {
+    const sub = () => document.querySelector('.dp-hud').classList.contains('has-sub');
+    const at = {}; const subAt = {}; let subOff = null; const t0 = performance.now();
+    window.demoPlayer.play();
+    (function tick() {
+      const i = window.demoPlayer.index, now = performance.now() - t0;
+      if (at[i] == null) { at[i] = now; subAt[i] = sub(); }
+      if (i === 2 && !sub() && subOff == null) subOff = now;
+      if (i >= 3 || now > 8000) return res({ at, subAt, subOff, pace: document.querySelector('[data-a=pace]').value });
+      requestAnimationFrame(tick);
+    })();
+  }));
+  const step3 = tr.at[3] - tr.at[2];
+  assert(Math.abs(step3 - 1375) < 300, `"As recorded" keeps a step's original length (${Math.round(step3)} ms at 4×, expected ≈1375)`);
+  assert(tr.subAt[2] === true && tr.subOff != null && tr.subOff < tr.at[3], 'the subtitle carries over to the next step and hides when the sentence ends');
+  assert(tr.pace === 'recorded', 'the player\'s Pace selector reflects the export setting');
+  await tp.close();
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
   console.log('\nAll good. Screenshots in', OUT);
 } finally {

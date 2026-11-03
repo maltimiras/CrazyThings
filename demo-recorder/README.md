@@ -35,7 +35,7 @@ Leave **Embed images & fonts** on (the default) so the file works offline and fo
 
 ### Player controls
 
-Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options (they override the export settings): `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
+Space plays/pauses, ←/→ move between steps, and the timeline is clickable. **Pace** switches between *Natural* (each step paced by its animations) and *As recorded* (each step lasts as long as in the original recording or video, which keeps a voice-over in sync). On the review page you can also set the pace and override how long any single step lasts (⏱ seconds); an open Preview tab reloads by itself after each change, at the same step. URL options (they override the export settings): `?mode=guided`, `?timing=recorded`, `?step=5`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
 
 ## Convert a video demo (Claude Code)
 

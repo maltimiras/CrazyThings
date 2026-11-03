@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = {
   mode: 'autoplay',      // 'autoplay' | 'guided' (viewer clicks hotspots to advance)
   autoStart: false,      // start playing as soon as the file opens (no Play button)
   speed: 1,
+  timing: 'auto',        // 'auto' (natural pacing) | 'recorded' (each step lasts as in the original recording/video)
   loop: false,           // restart from the beginning when finished
   controls: true,        // bottom control bar (play/pause, timeline, speed…)
   browserFrame: true,    // draw a fake browser window with the URL bar
@@ -76,7 +77,7 @@ export async function buildDemoData(sessionId) {
   for (const st of steps) {
     if (!st.screen || !remap[st.screen]) continue;
     const o = { id: outSteps.length + 1, type: st.type, screen: remap[st.screen] };
-    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration']) {
+    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration', 'narrationEnd', 'duration']) {
       if (st[k] !== undefined && st[k] !== null && st[k] !== '') o[k] = st[k];
     }
     o.t = st.t - t0;

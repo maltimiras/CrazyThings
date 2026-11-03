@@ -39,9 +39,9 @@ test('wordsToPhrases groups ElevenLabs words into sentences', () => {
     { text: '(laughs)', start: 3.0, end: 3.2, type: 'audio_event' },
   ];
   assert.deepEqual(wordsToPhrases(words), [
-    { start: 0.1, text: 'Hello team.' },
-    { start: 1.0, text: 'Now we' },
-    { start: 2.6, text: 'save' },
+    { start: 0.1, end: 0.8, text: 'Hello team.' },
+    { start: 1.0, end: 1.4, text: 'Now we' },
+    { start: 2.6, end: 2.9, text: 'save' },
   ]);
 });
 

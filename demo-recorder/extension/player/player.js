@@ -29,7 +29,7 @@
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, timing: 'auto', zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
   function flag(name, key) {
@@ -45,6 +45,7 @@
   flag('keys', 'showKeys');
   flag('zoom', 'zoom');
   flag('subs', 'subtitles');
+  if (params.get('timing') === 'recorded' || params.get('timing') === 'auto') settings.timing = params.get('timing');
   flag('captions', 'captions');
   if (params.get('bg')) settings.background = params.get('bg');
   if (settings.captions === false) steps.forEach(function (s) { delete s.note; });
@@ -81,6 +82,7 @@
       '<div class="dp-progress"><div class="dp-track"></div></div>' +
       '<span class="dp-count"></span>' +
       '<select data-a="mode" title="Mode"><option value="autoplay">Autoplay</option><option value="guided">Guided</option></select>' +
+      '<select data-a="pace" title="Pace"><option value="auto">Natural pace</option><option value="recorded">As recorded</option></select>' +
       '<select data-a="speed" title="Speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>' +
       '<button type="button" data-a="fs" title="Fullscreen">⛶</button>' +
     '</div>';
@@ -93,7 +95,7 @@
   var overlay = $('.dp-overlay'), cursorEl = $('.dp-cursor'), callout = $('.dp-callout'), keycap = $('.dp-keycap');
   var cover = $('.dp-cover'), coverBtn = $('.dp-cover button');
   var track = $('.dp-track'), countEl = $('.dp-count'), playBtn = root.querySelector('[data-a=play]');
-  var modeSel = root.querySelector('[data-a=mode]'), speedSel = root.querySelector('[data-a=speed]');
+  var modeSel = root.querySelector('[data-a=mode]'), speedSel = root.querySelector('[data-a=speed]'), paceSel = root.querySelector('[data-a=pace]');
 
   document.title = M.title || document.title;
   if (!settings.browserFrame) win.classList.add('dp-noframe');
@@ -101,6 +103,7 @@
   if (settings.controls === false) root.classList.add('dp-nocontrols');
   document.documentElement.classList.add('dp-bg-' + (settings.background || 'dark'));
   modeSel.value = settings.mode;
+  paceSel.value = settings.timing === 'recorded' ? 'recorded' : 'auto';
   speedSel.value = String(settings.speed);
   if (!speedSel.value) { speedSel.value = '1'; }
 
@@ -260,9 +263,11 @@
     return { x: r.left + r.width * (fx == null ? 0.5 : fx), y: r.top + r.height * (fy == null ? 0.5 : fy), rect: r };
   }
 
+  var moveCap = null; // max cursor travel time in a timed step
   function moveCursor(x, y) {
     var dist = Math.hypot(x - cursor.x, y - cursor.y);
     var ms = clamp(250 + dist * 0.6, 300, 1100);
+    if (moveCap != null) ms = Math.max(150, Math.min(ms, moveCap));
     cursorEl.style.transitionDuration = (ms / settings.speed) + 'ms';
     cursorEl.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     cursor.x = x; cursor.y = y;
@@ -391,11 +396,32 @@
   function hideKey() { keycap.classList.remove('on'); }
 
   // Narration subtitles (until real voice clips exist, the spoken text is shown at the bottom).
-  function showSubtitle(text) {
+  // A subtitle stays until its sentence has been said (subUntil), also over the following steps
+  // that have no narration of their own; a step with its own narration replaces it.
+  var subUntil = 0, subTimer = null;
+  function showSubtitle(text, ms) {
     subtitle.textContent = text;
     hud.classList.add('has-sub');
+    subUntil = Date.now() + ms;
+    clearTimeout(subTimer);
+    subTimer = setTimeout(function () { if (Date.now() >= subUntil - 30) hud.classList.remove('has-sub'); }, ms);
   }
-  function hideSubtitle() { hud.classList.remove('has-sub'); }
+  function hideSubtitle() { clearTimeout(subTimer); subUntil = 0; hud.classList.remove('has-sub'); }
+  function keepOrHideSubtitle() { if (Date.now() >= subUntil) hideSubtitle(); }
+
+  // How long a step lasts (video/recording ms), or null for the natural, animation-driven pace.
+  // step.duration overrides; in "recorded" timing it's the gap to the next step's original time.
+  function stepDuration(i) {
+    var s = steps[i];
+    if (typeof s.duration === 'number' && s.duration > 0) return s.duration;
+    if (settings.timing === 'recorded') {
+      var n = steps[i + 1];
+      if (n && typeof n.t === 'number' && typeof s.t === 'number') return Math.max(250, n.t - s.t);
+      return s.hold || 2000;
+    }
+    return null;
+  }
+  var typingBudget = null; // ms available for typing in a timed step
   // Roughly how long the narration takes to say (~15 characters per second).
   function speakTime(text) { return clamp(text.length * 65, 1500, 20000); }
 
@@ -426,6 +452,8 @@
     }
     var count = to.length - common;
     var per = count > 80 ? 15 : count > 30 ? 35 : 60;
+    // In a timed step, finish typing within the step's budget (average delay ≈ 1.4 × per).
+    if (typingBudget != null && count > 0) per = clamp(typingBudget / count / 1.4, 6, per);
     for (var k = common; k < to.length; k++) {
       set(to.slice(0, k + 1));
       await sleep(per + Math.random() * per * 0.8);
@@ -497,8 +525,20 @@
     // Keep the camera during key presses (they continue the typing); zoom out for everything else.
     var zoomOut = s.type !== 'click' && s.type !== 'type' && s.type !== 'key' && setZoom(1, 0, 0, true);
     var stepStart = Date.now();
+    var target = guided ? null : stepDuration(i);
+    var fit = target != null;
+    moveCap = fit ? target * 0.4 : null;
+    typingBudget = null;
     var narr = settings.subtitles !== false && s.narration ? String(s.narration) : '';
-    if (narr) showSubtitle(narr); else hideSubtitle();
+    if (narr) {
+      // Real spoken length when known (narrationEnd from the transcript), else an estimate.
+      var spoken = typeof s.narrationEnd === 'number' && typeof s.t === 'number' && s.narrationEnd > s.t
+        ? s.narrationEnd - s.t : speakTime(narr);
+      showSubtitle(narr, spoken / settings.speed);
+    } else {
+      keepOrHideSubtitle();
+    }
+    var g = function (ms) { return fit ? 0 : ms; }; // default pauses are absorbed by the step's duration
 
     switch (s.type) {
       case 'click': {
@@ -516,10 +556,10 @@
           showCallout(s.note, el, false);
           await sleep(readTime(s.note));
         } else {
-          await sleep(200);
+          await sleep(g(200));
         }
         clickFx();
-        await sleep(s.hold || 280);
+        await sleep(fit ? 250 : (s.hold || 280));
         break;
       }
       case 'type': {
@@ -538,36 +578,46 @@
         }
         if (s.note) showCallout(s.note, el, false);
         var t0 = Date.now();
+        if (fit) typingBudget = Math.max(300, target * 0.8 - (Date.now() - stepStart) * settings.speed);
         await typeText(el, s.from || '', s.text || '');
+        typingBudget = null;
         if (s.note) {
           if (guided) { showCallout(s.note, el, true); await waitForUser(null); }
           else await sleep(Math.max(500, readTime(s.note) - (Date.now() - t0)));
         } else {
-          await sleep(s.hold || 450);
+          await sleep(g(s.hold || 450));
         }
         break;
       }
       case 'key': {
-        if (settings.showKeys === false) { await noteGate(s, el, 150); break; }
+        if (settings.showKeys === false) { await noteGate(s, el, g(150)); break; }
         showKey(s.key);
-        await noteGate(s, el, 1000);
+        await noteGate(s, el, fit ? Math.min(1000, target * 0.8) : 1000);
         hideKey();
         break;
       }
       case 'scroll': {
         await animateScroll(doc, el, s.top || 0, s.left || 0);
-        await noteGate(s, el, 200);
+        await noteGate(s, el, g(200));
         break;
       }
       case 'start':
       case 'navigate':
-        await noteGate(s, el, 900);
+        await noteGate(s, el, g(900));
         break;
       case 'end':
-        await noteGate(s, el, 1500);
+        await noteGate(s, el, fit ? target : 1500);
         break;
       default: // change
-        await noteGate(s, el, 450);
+        await noteGate(s, el, g(450));
+    }
+    moveCap = null;
+    if (fit) {
+      // Timed step: last exactly as long as in the original (animations ran inside that time).
+      var rest = target - (Date.now() - stepStart) * settings.speed;
+      if (rest > 0) await sleep(rest);
+      check(my);
+      return;
     }
     // Let a zoom-out finish before the next step, so the full page is actually seen,
     // and give narration time to be read (autoplay; guided mode waits for the viewer anyway).
@@ -685,6 +735,7 @@
   });
   modeSel.addEventListener('change', function () { settings.mode = modeSel.value; if (playing) jump(idx, true); modeSel.blur(); });
   speedSel.addEventListener('change', function () { settings.speed = +speedSel.value || 1; speedSel.blur(); });
+  paceSel.addEventListener('change', function () { settings.timing = paceSel.value; if (playing) jump(idx, true); paceSel.blur(); });
   $('.dp-progress').addEventListener('click', function (e) {
     var r = track.getBoundingClientRect();
     var i = Math.floor(clamp((e.clientX - r.left) / r.width, 0, 0.9999) * steps.length);
@@ -707,9 +758,14 @@
   if (!steps.length) {
     showCover('This demo has no steps');
   } else {
-    showScreen(steps[0].screen).then(function () {
-      preloadNext(0);
+    // Start at a given step (the extension preview reopens where it was after an edit).
+    var startAt = clamp(parseInt(window.DEMO_START_STEP || params.get('step') || 0, 10) || 0, 0, steps.length - 1);
+    idx = startAt;
+    updateUI();
+    showScreen(steps[startAt].screen).then(function () {
+      preloadNext(startAt);
       if (settings.autoStart) play();
+      else if (startAt > 0) showCover('▶  Continue from step ' + (startAt + 1));
       else showCover(settings.mode === 'guided' ? '▶  Start interactive tour' : '▶  Play demo');
     });
   }

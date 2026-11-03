@@ -42,6 +42,8 @@
     .desc { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     td.note textarea { width: 100%; min-width: 220px; height: 34px; resize: vertical; font-size: 13px; }
     td.z { width: 120px; }
+    td.d { width: 74px; }
+    td.d input { width: 66px; font-size: 12px; padding: 5px 6px; }
     td.z select { font-size: 12px; padding: 5px 6px; width: 112px; }
     td.x { width: 40px; text-align: right; }
     td.note textarea.nar { margin-top: 4px; background: #f5f3ff; }
@@ -97,6 +99,8 @@
             <select data-setting="autoStart"><option value="false">Wait for Play</option><option value="true">Start automatically</option></select></label>
           <label><span>Speed</span>
             <select data-setting="speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+          <label title="Natural: each step paced by its animations. As recorded: each step lasts as long as in the original recording or video (keeps the voice-over in sync)."><span>Pace</span>
+            <select data-setting="timing"><option value="auto">Natural</option><option value="recorded">As recorded</option></select></label>
           <label class="chk"><input type="checkbox" data-setting="loop"> Loop when finished</label>
         </fieldset>
         <fieldset>

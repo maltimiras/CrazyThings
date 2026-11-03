@@ -152,7 +152,7 @@ function cmdInfo(input) {
     else if (s.type === 'key') d = s.key;
     else if (s.type === 'scroll') d = `→ ${s.top}px`;
     else if (s.url) d = s.url;
-    const note = (s.zoom === false ? '   [zoom off]' : typeof s.zoom === 'number' ? `   [zoom ${s.zoom}×]` : '') + (s.note ? `   📝 ${s.note}` : '') + (s.narration ? `   🎙 ${s.narration.length > 60 ? s.narration.slice(0, 57) + '…' : s.narration}` : '');
+    const note = (typeof s.duration === 'number' ? `   [⏱ ${(s.duration / 1000).toFixed(1)}s]` : '') + (s.zoom === false ? '   [zoom off]' : typeof s.zoom === 'number' ? `   [zoom ${s.zoom}×]` : '') + (s.note ? `   📝 ${s.note}` : '') + (s.narration ? `   🎙 ${s.narration.length > 60 ? s.narration.slice(0, 57) + '…' : s.narration}` : '');
     console.log(`${String(s.id).padStart(3)}  ${s.type.padEnd(8)} ${s.screen.padEnd(4)} ${s.target ? s.target.padEnd(5) : '     '} ${d}${note}`);
   }
 }
