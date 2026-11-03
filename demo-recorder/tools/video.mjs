@@ -176,7 +176,14 @@ async function speechToText(audio, key, opts) {
   fd.append('timestamps_granularity', 'word');
   if (opts.lang) fd.append('language_code', opts.lang);
   const res = await fetch(base + '/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': key }, body: fd });
-  if (!res.ok) throw new Error(`ElevenLabs ${res.status}: ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) {
+    const body = await res.text();
+    let hint = '';
+    if (res.status === 401 && /speech_to_text/.test(body)) hint = ' This API key is not allowed to use Speech to Text: in ElevenLabs → API keys, edit the key and enable the "Speech to Text" permission (or create a key with it).';
+    else if (res.status === 401) hint = ' Check the API key.';
+    else if (res.status === 429) hint = ' Rate limit or quota reached.';
+    throw new Error(`ElevenLabs ${res.status}.${hint}\n${body.slice(0, 300)}`);
+  }
   return res.json();
 }
 
@@ -347,6 +354,16 @@ async function cmdCompare(work) {
 
 // ------------------------------------------------------------------ main
 const argv = process.argv.slice(2);
+
+// Node's built-in fetch ignores HTTPS_PROXY unless NODE_USE_ENV_PROXY is set at startup (Node ≥ 22.21).
+// Behind a proxy, re-run this command once with it so transcription works there too.
+if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY &&
+    (argv[0] === 'transcribe' || argv[0] === 'narrate')) {
+  const r = spawnSync(process.execPath, ['--no-warnings', fileURLToPath(import.meta.url), ...argv], {
+    stdio: 'inherit', env: { ...process.env, NODE_USE_ENV_PROXY: '1' },
+  });
+  process.exit(r.status == null ? 1 : r.status);
+}
 const opts = {};
 const pos = [];
 for (let i = 0; i < argv.length; i++) {
