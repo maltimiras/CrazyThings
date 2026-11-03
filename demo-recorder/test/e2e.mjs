@@ -519,6 +519,41 @@ try {
   assert(tr.pace === 'recorded', 'the player\'s Pace selector reflects the export setting');
   await tp.close();
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- global Settings: the ElevenLabs key is set once and used by every recording
+  const st = await ctx.newPage();
+  st.on('pageerror', (e) => errors.push('settings: ' + e.message));
+  await st.goto(`chrome-extension://${extId}/review.html#settings`);
+  await st.waitForSelector('[data-pref=elKey]');
+  await st.fill('[data-pref=elKey]', 'sk_global_test');
+  await st.press('[data-pref=elKey]', 'Tab');
+  await st.waitForFunction(() => /Saved/.test(document.getElementById('key-result').textContent));
+  const savedKey = await st.evaluate(() => chrome.storage.local.get('elKey').then((r) => r.elKey));
+  assert(savedKey === 'sk_global_test', 'the Settings page saves the ElevenLabs key once');
+  // Test key: stub ElevenLabs (missing permission, then OK)
+  await st.evaluate(() => {
+    let n = 0;
+    window.fetch = async () => (n++ === 0
+      ? new Response('{"detail":{"status":"missing_permissions","message":"missing the permission speech_to_text"}}', { status: 401 })
+      : new Response('{"detail":"invalid audio"}', { status: 400 }));
+  });
+  await st.click('#key-test');
+  await st.waitForFunction(() => /not allowed to use Speech to Text/.test(document.getElementById('key-result').textContent));
+  await st.click('#key-test');
+  await st.waitForFunction(() => /✓ The key works/.test(document.getElementById('key-result').textContent));
+  assert(true, 'Test key explains a missing Speech-to-Text permission and confirms a working key');
+  await st.screenshot({ path: path.join(OUT, 'settings.png') });
+  for (const sidN of [narSession, sessionId]) {
+    await st.goto(`chrome-extension://${extId}/review.html#${sidN}`);
+    await st.waitForSelector('#steps tr');
+  }
+  const perRec = await st.evaluate(() => ({ card: !!document.querySelector('details#settings'), sidebar: !!document.querySelector('.setlink') }));
+  await st.goto(`chrome-extension://${extId}/review.html#${narSession}`);
+  await st.waitForSelector('#narr:not([hidden])');
+  await st.waitForFunction(() => /✓ set/.test(document.getElementById('narr-key').textContent));
+  assert(!perRec.card && perRec.sidebar, 'recordings no longer have their own Settings card; the Narration card shows the shared key is set');
+  await st.close();
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
   console.log('\nAll good. Screenshots in', OUT);
 } finally {
   await ctx.close();

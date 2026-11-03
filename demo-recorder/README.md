@@ -104,7 +104,7 @@ While recording, a small **Narration** window shows the volume bar and your word
 
 - The microphone is recorded through page changes and pauses with the recording.
 - **Live transcript (free, Google Chrome only):** Chrome transcribes while you talk, and each sentence is put on the step that was on screen when you said it. Chrome sends the audio to Google for this.
-- **ElevenLabs (more accurate):** add your ElevenLabs API key under **Settings** in the review page, then click **Transcribe with ElevenLabs**. It uses speech-to-text (`scribe_v2`) with word timings to fill each step's narration.
+- **ElevenLabs (more accurate):** add your ElevenLabs API key **once** in **⚙ Settings** (the link under *Import demo* on the recordings page, or ⚙ in the popup); every recording uses it. **Test key** checks it has the *Speech to Text* permission. Then click **Transcribe with ElevenLabs** on a recording. It uses speech-to-text (`scribe_v2`) with word timings to fill each step's narration.
 - Each step's narration is plain text you can edit in the review page. It's exported as `narration` on the step and shown as **subtitles** in the player (export option "Narration subtitles", or `?subs=0`). Claude Code can rewrite it per prospect like any other text.
 - The original audio stays with the recording: play it, download it, or transcribe it again. It isn't embedded in exports. The plan is to generate the voice from the (personalized) text with ElevenLabs text-to-speech.
 

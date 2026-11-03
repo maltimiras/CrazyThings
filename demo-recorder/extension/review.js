@@ -137,18 +137,6 @@ async function renderEditor(id) {
   // ---------- narration ----------
   await renderNarration(id, session);
 
-  // ---------- settings (transcription) ----------
-  const prefs = await chrome.storage.local.get(['elKey', 'elModel', 'elLang', 'narrationLang']);
-  const liveLang = main.querySelector('[data-pref=narrationLang]');
-  if (liveLang) liveLang.innerHTML = LANGUAGES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
-  for (const el of main.querySelectorAll('[data-pref]')) {
-    const key = el.dataset.pref;
-    el.value = prefs[key] || '';
-    el.onchange = async () => {
-      await chrome.storage.local.set({ [key]: el.value.trim() });
-      if (key === 'elKey') renderNarration(id, await db.getSession(id));
-    };
-  }
 
   $('preview').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('preview.html#' + id) });
 
@@ -213,7 +201,10 @@ async function renderNarration(id, session) {
   }
   const { elKey } = await chrome.storage.local.get('elKey');
   $('transcribe').disabled = !elKey || !blob;
-  $('transcribe').title = elKey ? 'Send the audio to ElevenLabs speech-to-text' : 'Add your ElevenLabs API key in Settings below';
+  $('transcribe').title = elKey ? 'Send the audio to ElevenLabs speech-to-text' : 'Add your ElevenLabs API key in ⚙ Settings';
+  $('narr-key').innerHTML = elKey
+    ? 'ElevenLabs key: ✓ set (shared by all recordings · <a href="#settings">⚙ Settings</a>)'
+    : 'ElevenLabs key: not set · <a href="#settings">add it in ⚙ Settings</a> to transcribe';
   $('use-live').hidden = !live.length;
   $('use-live').onclick = () => applyPhrases(id, livePhrases(audio, live), 'chrome');
   $('transcribe').onclick = () => transcribe(id, blob);
@@ -308,8 +299,64 @@ aside.addEventListener('drop', (e) => {
   if (f) importFile(f);
 });
 
+// ---------- global settings (shared by all recordings) ----------
+async function renderSettings() {
+  currentId = null;
+  await renderSessions();
+  const main = $('main');
+  main.innerHTML = '';
+  main.appendChild($('settings-view').content.cloneNode(true));
+  const liveLang = main.querySelector('[data-pref=narrationLang]');
+  liveLang.innerHTML = LANGUAGES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const prefs = await chrome.storage.local.get(['elKey', 'elModel', 'elLang', 'narrationLang']);
+  for (const el of main.querySelectorAll('[data-pref]')) {
+    const key = el.dataset.pref;
+    el.value = prefs[key] || '';
+    el.onchange = async () => {
+      await chrome.storage.local.set({ [key]: el.value.trim() });
+      if (key === 'elKey') { $('key-result').className = 'muted'; $('key-result').textContent = el.value.trim() ? 'Saved.' : 'Removed.'; }
+    };
+  }
+  const keyInput = main.querySelector('[data-pref=elKey]');
+  $('key-show').onclick = () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; };
+  $('key-test').onclick = () => testKey(keyInput.value.trim());
+}
+
+// Check the key can use Speech to Text, without transcribing anything: a tiny non-audio file is
+// rejected as bad input (400/422) when the key is fine, and with 401 when it isn't allowed.
+async function testKey(key) {
+  const out = $('key-result');
+  out.className = 'muted';
+  if (!key) { out.textContent = 'Enter a key first.'; return; }
+  out.textContent = 'Testing…';
+  try {
+    const fd = new FormData();
+    fd.append('file', new Blob([new Uint8Array(32)], { type: 'audio/mpeg' }), 'test.mp3');
+    fd.append('model_id', 'scribe_v2');
+    const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': key }, body: fd });
+    const body = await res.text();
+    if (res.status === 401 && /speech_to_text/.test(body)) {
+      out.className = 'bad';
+      out.textContent = 'The key works but is not allowed to use Speech to Text: edit it in ElevenLabs (Developers → API keys) and enable that permission.';
+    } else if (res.status === 401 || res.status === 403) {
+      out.className = 'bad';
+      out.textContent = 'ElevenLabs rejected the key (' + res.status + '). Check that it was copied completely.';
+    } else if (res.status === 429) {
+      out.className = 'bad';
+      out.textContent = 'Rate limit or quota reached on this ElevenLabs account.';
+    } else {
+      out.className = 'ok';
+      out.textContent = '✓ The key works for Speech to Text.';
+    }
+  } catch (e) {
+    out.className = 'bad';
+    out.textContent = 'Could not reach ElevenLabs: ' + (e.message || e);
+  }
+}
+
 function route() {
   const h = location.hash.slice(1);
+  if (h === 'settings') return renderSettings();
   if (h === 'import') {
     // Opened from the popup's "Import demo…": open the file picker (may need a click if the browser blocks it).
     $('import-msg').textContent = 'Choose a .demo.html file to import.';
