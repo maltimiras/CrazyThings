@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   zoomLevel: 1.8,
   captions: true,        // show step captions (notes) as callouts
   subtitles: true,       // show step narration (spoken text) as subtitles
+  voice: true,           // play the voice-over clips (step.voice, ElevenLabs text-to-speech) when the demo has them
   background: 'dark',    // 'dark' | 'light' | 'none' (white, no shadow — for embedding)
 };
 
@@ -77,7 +78,7 @@ export async function buildDemoData(sessionId) {
   for (const st of steps) {
     if (!st.screen || !remap[st.screen]) continue;
     const o = { id: outSteps.length + 1, type: st.type, screen: remap[st.screen] };
-    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration', 'narrationEnd', 'duration']) {
+    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration', 'narrationEnd', 'duration', 'voice', 'voiceMs', 'voiceText']) {
       if (st[k] !== undefined && st[k] !== null && st[k] !== '') o[k] = st[k];
     }
     o.t = st.t - t0;
@@ -102,8 +103,19 @@ export async function buildDemoData(sessionId) {
     screens: screenMeta,
     steps: outSteps,
   };
+  if (session.lang) manifest.lang = session.lang;            // language of the text and narration
+  if (session.voiceover) manifest.voiceover = session.voiceover; // { voiceId, name, model } used for the clips
   // Imported recordings carry their embedded images/fonts (demo-asset:aN references).
-  return { manifest, screens, css, assets: { ...(session.assets || {}) } };
+  const assets = { ...(session.assets || {}) };
+  // Voice clips generated with ElevenLabs live in session.voices; only the ones in use are embedded.
+  for (const st of outSteps) {
+    if (!st.voice) continue;
+    // A clip of older text (the narration was edited since) or of a step without narration is left out.
+    if (!st.narration || (st.voiceText || st.narration) !== st.narration) { delete st.voice; delete st.voiceMs; delete st.voiceText; continue; }
+    if (session.voices && session.voices[st.voice]) assets[st.voice] = session.voices[st.voice];
+    else if (!assets[st.voice]) { delete st.voice; delete st.voiceMs; }
+  }
+  return { manifest, screens, css, assets };
 }
 
 // ---------------------------------------------------------------------------

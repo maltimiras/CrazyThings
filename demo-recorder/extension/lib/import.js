@@ -2,7 +2,7 @@
 // Pure: returns the records to store; the caller writes them to IndexedDB.
 import { parseDemo, FORMAT_VERSION } from './format.js';
 
-const STEP_FIELDS = ['type', 'target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration', 'narrationEnd', 'duration'];
+const STEP_FIELDS = ['type', 'target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration', 'narrationEnd', 'duration', 'voice', 'voiceMs', 'voiceText'];
 
 function hash(str) {
   let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
@@ -80,5 +80,7 @@ export async function importDemo(html, { sessionId, now = Date.now(), existingCs
     imported: { from: manifest.createdAt || null, at: now },
     assets: assets || {},
   };
+  if (manifest.lang) session.lang = manifest.lang;
+  if (manifest.voiceover) session.voiceover = manifest.voiceover;
   return { session, screens, steps, css, warnings };
 }

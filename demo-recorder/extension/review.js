@@ -1,5 +1,8 @@
 import { db } from './lib/db.js';
-import { buildDemoHtml, describeStep, DEFAULT_SETTINGS } from './lib/build.js';
+import { buildDemoHtml, buildDemoData, describeStep, DEFAULT_SETTINGS } from './lib/build.js';
+import { assembleDemo } from './lib/format.js';
+import { collectTexts, applyTranslations, translateTexts, testClaudeKey, TRANSLATION_LANGUAGES, translationLanguage, DEFAULT_CLAUDE_MODEL } from './lib/translate.js';
+import { listVoices, voiceSteps, nextAssetId, DEFAULT_TTS_MODEL } from './lib/voice.js';
 import { assignPhrases, livePhrases, wordsToPhrases, mergeNarration } from './lib/narration.js';
 import { LANGUAGES, languageName, toIso639 } from './lib/miclevel.js';
 import { importDemo } from './lib/import.js';
@@ -114,7 +117,27 @@ async function renderEditor(id) {
     ta.onchange = async () => { st.note = ta.value.trim() || undefined; await db.putStep(st); refreshPreview(id); };
     const nar = tr.querySelector('textarea.nar');
     nar.value = st.narration || '';
-    nar.onchange = async () => { st.narration = nar.value.trim() || undefined; await db.putStep(st); refreshPreview(id); };
+    const clip = document.createElement('div');
+    clip.className = 'vclip';
+    nar.after(clip);
+    const showClip = () => {
+      const url = st.voice && ((session.voices || {})[st.voice] || (session.assets || {})[st.voice]);
+      clip.innerHTML = '';
+      clip.className = 'vclip';
+      if (!url) return;
+      if ((st.voiceText || st.narration) !== st.narration) {
+        clip.classList.add('stale');
+        clip.textContent = '🔊 voice outdated: the text changed (Generate voice updates it)';
+        return;
+      }
+      const b = document.createElement('button');
+      b.textContent = '▶';
+      b.title = 'Listen to this step';
+      b.onclick = () => new Audio(url).play();
+      clip.append(b, `🔊 ${((st.voiceMs || 0) / 1000).toFixed(1)} s`);
+    };
+    showClip();
+    nar.onchange = async () => { st.narration = nar.value.trim() || undefined; await db.putStep(st); showClip(); renderVoiceInfo(id); refreshPreview(id); };
     const row = { st, tr, nar };
     rows.push(row);
     tr.querySelector('td.x button').onclick = async () => {
@@ -136,6 +159,8 @@ async function renderEditor(id) {
 
   // ---------- narration ----------
   await renderNarration(id, session);
+  await renderVoice(id, session);
+  renderVersions(id, session);
 
 
   $('preview').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('preview.html#' + id) });
@@ -259,6 +284,221 @@ async function transcribe(id, blob) {
   }
 }
 
+// ---------- voice-over (ElevenLabs text-to-speech) ----------
+async function cachedVoices(refresh) {
+  const { elKey, elVoices } = await chrome.storage.local.get(['elKey', 'elVoices']);
+  if (!elKey) return { voices: [], key: '' };
+  if (!refresh && Array.isArray(elVoices) && elVoices.length) return { voices: elVoices, key: elKey };
+  const voices = (await listVoices(elKey)).map(({ id, name, description }) => ({ id, name, description }));
+  await chrome.storage.local.set({ elVoices: voices });
+  return { voices, key: elKey };
+}
+
+function fillVoices(select, voices, value) {
+  select.innerHTML = '';
+  for (const v of voices) {
+    const o = document.createElement('option');
+    o.value = v.id;
+    o.textContent = v.name + (v.description ? ' · ' + v.description : '');
+    select.appendChild(o);
+  }
+  if (value && !voices.some((v) => v.id === value)) {
+    const o = document.createElement('option');
+    o.value = value; o.textContent = 'Voice ' + value.slice(0, 8);
+    select.appendChild(o);
+  }
+  if (value) select.value = value;
+}
+
+async function renderVoiceInfo(id) {
+  const info = $('vo-info');
+  if (!info) return;
+  const [session, steps] = await Promise.all([db.getSession(id), db.getSteps(id)]);
+  const narrated = steps.filter((s) => s.narration);
+  const ok = (s) => s.voice && ((session.voices || {})[s.voice] || (session.assets || {})[s.voice]) && (s.voiceText || s.narration) === s.narration;
+  const voiced = narrated.filter(ok);
+  const secs = voiced.reduce((n, s) => n + (s.voiceMs || 0), 0) / 1000;
+  const vo = session.voiceover;
+  info.textContent = !narrated.length ? 'no narration text yet: write it on the steps below, or transcribe a recording'
+    : `${voiced.length}/${narrated.length} narrated steps voiced` + (voiced.length ? ` · ${Math.round(secs)} s` : '') + (vo && vo.name && voiced.length ? ` · ${vo.name}` : '');
+  $('vo-gen').disabled = !narrated.length;
+  $('vo-gen').textContent = voiced.length && voiced.length < narrated.length ? 'Voice the rest' : voiced.length ? 'Regenerate voice' : 'Generate voice';
+  $('vo-clear').hidden = !steps.some((s) => s.voice);
+}
+
+async function renderVoice(id, session) {
+  const sel = $('vo-voice');
+  const status = $('vo-status');
+  const prefs = await chrome.storage.local.get(['elKey', 'elVoice']);
+  const current = (session.voiceover && session.voiceover.voiceId) || prefs.elVoice || '';
+  await renderVoiceInfo(id);
+  const load = async (refresh) => {
+    status.className = 'muted';
+    try {
+      const { voices } = await cachedVoices(refresh);
+      fillVoices(sel, voices, sel.value || current);
+      status.textContent = voices.length ? '' : '';
+    } catch (e) {
+      status.className = 'bad';
+      status.textContent = e.message || String(e);
+      fillVoices(sel, [], current);
+    }
+  };
+  if (!prefs.elKey) {
+    sel.hidden = true; $('vo-reload').hidden = true; $('vo-gen').disabled = true;
+    status.innerHTML = 'Add your ElevenLabs API key in <a href="#settings">⚙ Settings</a> to generate the voice from the narration text.';
+    return;
+  }
+  await load(false);
+  $('vo-reload').onclick = () => load(true);
+  $('vo-gen').onclick = async () => {
+    const all = $('vo-gen').textContent === 'Regenerate voice';
+    if (all && !confirm('Generate the voice again for every narrated step? This uses ElevenLabs credits.')) return;
+    await generateVoice(id, { voiceId: sel.value, voiceName: sel.selectedOptions[0] ? sel.selectedOptions[0].textContent.split(' · ')[0] : '', all });
+    renderEditor(id);
+  };
+  $('vo-clear').onclick = async () => {
+    if (!confirm('Remove the voice clips? The narration text stays.')) return;
+    const s = await db.getSession(id);
+    for (const st of await db.getSteps(id)) {
+      if (!st.voice) continue;
+      if (s.assets) delete s.assets[st.voice];
+      delete st.voice; delete st.voiceMs; delete st.voiceText;
+      await db.putStep(st);
+    }
+    s.voices = {};
+    await db.putSession(s);
+    refreshPreview(id);
+    renderEditor(id);
+  };
+}
+
+// Voice the narrated steps of a recording. Only steps without an up-to-date clip, unless `all`
+// or another voice/model was chosen. Clips are stored in session.voices (asset id → data URL).
+async function generateVoice(id, { voiceId, voiceName, all = false, statusEl } = {}) {
+  const status = statusEl || $('vo-status');
+  const btn = $('vo-gen');
+  const prefs = await chrome.storage.local.get(['elKey', 'elVoice', 'elTtsModel']);
+  const session = await db.getSession(id);
+  const steps = await db.getSteps(id);
+  voiceId = voiceId || (session.voiceover && session.voiceover.voiceId) || prefs.elVoice;
+  if (!voiceId) {
+    const { voices } = await cachedVoices(false);
+    if (voices[0]) { voiceId = voices[0].id; voiceName = voices[0].name; }
+  }
+  if (!prefs.elKey || !voiceId) throw new Error('Add your ElevenLabs key and pick a voice in ⚙ Settings.');
+  const model = prefs.elTtsModel || DEFAULT_TTS_MODEL;
+  const vo = session.voiceover || {};
+  const same = vo.voiceId === voiceId && (vo.model || DEFAULT_TTS_MODEL) === model;
+  session.voices = session.voices || {};
+  const has = (st) => st.voice && (session.voices[st.voice] || (session.assets || {})[st.voice]) && (st.voiceText || st.narration) === st.narration;
+  if (btn && !statusEl) btn.disabled = true;
+  status.className = 'muted';
+  status.textContent = 'Generating the voice with ElevenLabs…';
+  try {
+    const { voiced } = await voiceSteps(steps, {
+      key: prefs.elKey, voiceId, model, languageCode: toIso639(session.lang),
+      skip: (i) => !all && same && has(steps[i]),
+      onClip: async (i, clip) => {
+        const st = steps[i];
+        if (st.voice) { delete session.voices[st.voice]; if (session.assets) delete session.assets[st.voice]; }
+        const aid = nextAssetId({ ...(session.assets || {}), ...session.voices });
+        session.voices[aid] = `data:${clip.mime};base64,${clip.base64}`;
+        st.voice = aid; st.voiceMs = clip.ms; st.voiceText = st.narration;
+        await db.putStep(st);
+      },
+      onProgress: (d, t) => { status.textContent = `Generating the voice with ElevenLabs… ${d}/${t}`; },
+    });
+    for (const st of steps) {
+      if (st.voice && !st.narration) { delete session.voices[st.voice]; delete st.voice; delete st.voiceMs; delete st.voiceText; await db.putStep(st); }
+    }
+    session.voiceover = { voiceId, name: voiceName || (same ? vo.name : '') || '', model };
+    status.className = 'ok';
+    status.textContent = voiced ? `✓ Voiced ${voiced} step${voiced === 1 ? '' : 's'}. Preview or export to hear it.` : 'Every narrated step already has an up-to-date voice clip.';
+    return voiced;
+  } catch (e) {
+    status.className = 'bad';
+    status.textContent = e.message || String(e);
+    throw e;
+  } finally {
+    await db.putSession(session);
+    refreshPreview(id);
+    if (btn && !statusEl) btn.disabled = false;
+  }
+}
+
+// ---------- language versions (Claude translates; ElevenLabs voices) ----------
+function renderVersions(id, session) {
+  const sel = $('lv-lang');
+  sel.innerHTML = TRANSLATION_LANGUAGES.map(([c, , label]) => `<option value="${c}">${label}</option>`).join('');
+  chrome.storage.local.get(['lvLang', 'lvScreens', 'lvVoice']).then((p) => {
+    sel.value = p.lvLang || (toIso639(session.lang) === 'en' ? 'es' : 'en');
+    if (p.lvScreens === false) $('lv-screens').checked = false;
+    if (p.lvVoice === false) $('lv-voice').checked = false;
+  });
+  sel.onchange = () => chrome.storage.local.set({ lvLang: sel.value });
+  $('lv-screens').onchange = () => chrome.storage.local.set({ lvScreens: $('lv-screens').checked });
+  $('lv-voice').onchange = () => chrome.storage.local.set({ lvVoice: $('lv-voice').checked });
+  $('lv-go').onclick = () => createVersion(id, sel.value, { screens: $('lv-screens').checked, voice: $('lv-voice').checked });
+}
+
+async function storeImported({ session, screens, steps, css }) {
+  for (const [k, text] of Object.entries(css)) await db.putCss(k, text);
+  for (const s of screens) await db.putScreen(s);
+  for (const st of steps) await db.addStep(st); // in order: keys follow the demo's step order
+  await db.putSession(session);
+}
+
+async function createVersion(id, code, { screens = true, voice = true } = {}) {
+  const status = $('lv-status');
+  const btn = $('lv-go');
+  const [, langName, label] = translationLanguage(code);
+  const { anKey, anModel, elKey } = await chrome.storage.local.get(['anKey', 'anModel', 'elKey']);
+  status.className = 'muted';
+  if (!anKey) { status.innerHTML = 'Add your Anthropic API key in <a href="#settings">⚙ Settings</a> to translate with Claude.'; return; }
+  const original = await db.getSession(id);
+  const data = await buildDemoData(id);
+  const items = collectTexts(data, { screens });
+  const chars = items.reduce((n, it) => n + it.text.length, 0);
+  if (!items.length) { status.textContent = 'Nothing to translate.'; return; }
+  if (!confirm(`Translate ${items.length} strings (${chars.toLocaleString()} characters) into ${langName} with Claude${voice ? ', then generate the voice with ElevenLabs' : ''}?`)) return;
+  btn.disabled = true;
+  try {
+    status.textContent = `Translating into ${langName} with Claude… 0/${items.length}`;
+    const map = await translateTexts(items, {
+      key: anKey, model: anModel || DEFAULT_CLAUDE_MODEL, lang: langName, title: data.manifest.title,
+      onProgress: (d, t) => { status.textContent = `Translating into ${langName} with Claude… ${d}/${t}`; },
+    });
+    const voiceIds = data.manifest.steps.map((s) => s.voice).filter(Boolean);
+    const changed = applyTranslations(data, map, { screens });
+    for (const v of voiceIds) delete data.assets[v];
+    data.manifest.lang = code;
+    const newId = crypto.randomUUID();
+    const rec = await importDemo(assembleDemo({ ...data, playerJs: '', playerCss: '' }), { sessionId: newId, existingCss: (k) => db.getCss(k) });
+    Object.assign(rec.session, {
+      title: `${original.title} · ${label}`, url: original.url, createdAt: Date.now(),
+      versionOf: { id, lang: code }, exportInline: original.exportInline,
+    });
+    delete rec.session.imported;
+    await storeImported(rec);
+    status.className = 'ok';
+    status.textContent = `✓ Translated ${changed} strings.`;
+    if (voice && rec.steps.some((s) => s.narration)) {
+      if (!elKey) status.textContent += ' Add an ElevenLabs key in ⚙ Settings to generate the voice.';
+      else {
+        try { await generateVoice(newId, { statusEl: status }); } catch { /* message shown in status */ }
+      }
+    }
+    await renderSessions();
+    location.hash = newId;
+  } catch (e) {
+    status.className = 'bad';
+    status.textContent = e.message || String(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ---------- import a shared .demo.html ----------
 async function importFile(file) {
   const msg = $('import-msg');
@@ -270,10 +510,7 @@ async function importFile(file) {
       sessionId: id,
       existingCss: (key) => db.getCss(key),
     });
-    for (const [k, text] of Object.entries(css)) await db.putCss(k, text);
-    for (const s of screens) await db.putScreen(s);
-    for (const st of steps) await db.addStep(st); // in order: keys follow the demo's step order
-    await db.putSession(session);
+    await storeImported({ session, screens, steps, css });
     msg.className = warnings.length ? 'warn' : '';
     msg.textContent = warnings.length ? warnings.join(' ') : `Imported “${session.title}” (${steps.length} steps).`;
     location.hash = id;
@@ -308,18 +545,54 @@ async function renderSettings() {
   main.appendChild($('settings-view').content.cloneNode(true));
   const liveLang = main.querySelector('[data-pref=narrationLang]');
   liveLang.innerHTML = LANGUAGES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
-  const prefs = await chrome.storage.local.get(['elKey', 'elModel', 'elLang', 'narrationLang']);
+  const prefs = await chrome.storage.local.get(['elKey', 'elModel', 'elLang', 'narrationLang', 'elTtsModel', 'anKey', 'anModel', 'elVoice']);
   for (const el of main.querySelectorAll('[data-pref]')) {
     const key = el.dataset.pref;
     el.value = prefs[key] || '';
     el.onchange = async () => {
       await chrome.storage.local.set({ [key]: el.value.trim() });
-      if (key === 'elKey') { $('key-result').className = 'muted'; $('key-result').textContent = el.value.trim() ? 'Saved.' : 'Removed.'; }
+      if (key === 'elKey') { $('key-result').className = 'muted'; $('key-result').textContent = el.value.trim() ? 'Saved.' : 'Removed.'; chrome.storage.local.remove('elVoices'); }
+      if (key === 'anKey') { $('an-result').className = 'muted'; $('an-result').textContent = el.value.trim() ? 'Saved.' : 'Removed.'; }
     };
   }
   const keyInput = main.querySelector('[data-pref=elKey]');
   $('key-show').onclick = () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; };
   $('key-test').onclick = () => testKey(keyInput.value.trim());
+  const anInput = main.querySelector('[data-pref=anKey]');
+  $('an-show').onclick = () => { anInput.type = anInput.type === 'password' ? 'text' : 'password'; };
+  $('an-test').onclick = async () => {
+    const out = $('an-result');
+    out.className = 'muted';
+    if (!anInput.value.trim()) { out.textContent = 'Enter a key first.'; return; }
+    out.textContent = 'Testing…';
+    try {
+      const r = await testClaudeKey(anInput.value.trim());
+      out.className = r.ok ? 'ok' : 'bad';
+      out.textContent = r.ok ? '✓ The key works.' : r.message;
+    } catch (e) { out.className = 'bad'; out.textContent = 'Could not reach Anthropic: ' + (e.message || e); }
+  };
+  // Default voice
+  const pick = $('voice-pick');
+  const vres = $('voice-result');
+  let voices = [];
+  const loadVoices = async (refresh) => {
+    try {
+      voices = (await cachedVoices(refresh)).voices;
+      fillVoices(pick, voices, prefs.elVoice || '');
+      if (!voices.length) vres.textContent = 'Add the ElevenLabs key above, then ↻ to load the voices.';
+    } catch (e) { vres.className = 'bad'; vres.textContent = e.message || String(e); }
+  };
+  await loadVoices(false);
+  $('voice-load').onclick = () => loadVoices(true);
+  pick.onchange = () => { prefs.elVoice = pick.value; chrome.storage.local.set({ elVoice: pick.value }); };
+  $('voice-play').onclick = async () => {
+    // Preview clips come from ElevenLabs' voice list (not cached): fetch the list once.
+    try {
+      const { elKey } = await chrome.storage.local.get('elKey');
+      const v = (await listVoices(elKey)).find((x) => x.id === pick.value);
+      if (v && v.preview) new Audio(v.preview).play();
+    } catch (e) { vres.className = 'bad'; vres.textContent = e.message || String(e); }
+  };
 }
 
 // Check the key can use Speech to Text, without transcribing anything: a tiny non-audio file is

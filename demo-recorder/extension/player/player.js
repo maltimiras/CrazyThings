@@ -29,7 +29,7 @@
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, timing: 'auto', zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, voice: true, timing: 'auto', zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
   function flag(name, key) {
@@ -45,6 +45,7 @@
   flag('keys', 'showKeys');
   flag('zoom', 'zoom');
   flag('subs', 'subtitles');
+  flag('voice', 'voice');
   if (params.get('timing') === 'recorded' || params.get('timing') === 'auto') settings.timing = params.get('timing');
   flag('captions', 'captions');
   if (params.get('bg')) settings.background = params.get('bg');
@@ -395,7 +396,7 @@
   }
   function hideKey() { keycap.classList.remove('on'); }
 
-  // Narration subtitles (until real voice clips exist, the spoken text is shown at the bottom).
+  // Narration subtitles: the spoken text is shown at the bottom (with or without a voice clip).
   // A subtitle stays until its sentence has been said (subUntil), also over the following steps
   // that have no narration of their own; a step with its own narration replaces it.
   var subUntil = 0, subTimer = null;
@@ -405,6 +406,24 @@
     subUntil = Date.now() + ms;
     clearTimeout(subTimer);
     subTimer = setTimeout(function () { if (Date.now() >= subUntil - 30) hud.classList.remove('has-sub'); }, ms);
+  }
+  // Voice-over clips (ElevenLabs text-to-speech, embedded as demo-asset:aN in step.voice).
+  // A clip keeps playing over the following steps that have no clip of their own; the next step
+  // with a clip waits until the previous one has finished, so sentences are never cut off.
+  var hasVoice = settings.voice !== false && steps.some(function (s) { return s.voice && src.assets[s.voice]; });
+  var voiceAudio = null;
+  function stopVoice() { if (voiceAudio) { try { voiceAudio.pause(); } catch (e) {} voiceAudio = null; } }
+  function startVoice(s) {
+    stopVoice();
+    var a = new Audio(src.assets[s.voice]);
+    a.playbackRate = settings.speed;
+    voiceAudio = a;
+    var p = a.play();
+    // Browsers block sound before the viewer interacts (autoStart): subtitles still show.
+    if (p && p.catch) p.catch(function () { if (voiceAudio === a) voiceAudio = null; });
+  }
+  async function waitVoice() {
+    while (voiceAudio && !voiceAudio.ended && !voiceAudio.paused) await sleep(80 * settings.speed);
   }
   function hideSubtitle() { clearTimeout(subTimer); subUntil = 0; hud.classList.remove('has-sub'); }
   function keepOrHideSubtitle() { if (Date.now() >= subUntil) hideSubtitle(); }
@@ -512,6 +531,8 @@
   async function runStep(i, force) {
     var my = runId;
     var s = steps[i];
+    var voiced = !!(hasVoice && s.voice && src.assets[s.voice]);
+    if (voiced && settings.mode !== 'guided') { await waitVoice(); check(my); }
     hideCallout();
     hideKey();
     hideHotspot();
@@ -530,9 +551,11 @@
     moveCap = fit ? target * 0.4 : null;
     typingBudget = null;
     var narr = settings.subtitles !== false && s.narration ? String(s.narration) : '';
+    if (voiced) startVoice(s);
     if (narr) {
-      // Real spoken length when known (narrationEnd from the transcript), else an estimate.
-      var spoken = typeof s.narrationEnd === 'number' && typeof s.t === 'number' && s.narrationEnd > s.t
+      // Real spoken length: the voice clip, else narrationEnd from the transcript, else an estimate.
+      var spoken = voiced && s.voiceMs ? s.voiceMs
+        : typeof s.narrationEnd === 'number' && typeof s.t === 'number' && s.narrationEnd > s.t
         ? s.narrationEnd - s.t : speakTime(narr);
       showSubtitle(narr, spoken / settings.speed);
     } else {
@@ -621,7 +644,8 @@
     }
     // Let a zoom-out finish before the next step, so the full page is actually seen,
     // and give narration time to be read (autoplay; guided mode waits for the viewer anyway).
-    var minMs = Math.max(zoomOut ? 750 : 0, narr && !guided ? speakTime(narr) : 0);
+    var talk = voiced ? (s.voiceMs || 0) : narr ? speakTime(narr) : 0;
+    var minMs = Math.max(zoomOut ? 750 : 0, guided ? 0 : talk);
     var left = minMs - (Date.now() - stepStart) * settings.speed;
     if (left > 0) await sleep(left);
     check(my);
@@ -644,6 +668,8 @@
         if (idx < steps.length - 1) idx++; else { idx = steps.length; break; }
         updateUI();
       }
+      await waitVoice(); // let the last sentence finish
+      if (my !== runId) return;
       playing = false;
       updateUI();
       if (settings.loop) {
@@ -664,6 +690,7 @@
     if (!playing) return;
     playing = false;
     abortAll();
+    stopVoice();
     hideSubtitle();
     hideCallout();
     hideKey();
@@ -674,6 +701,7 @@
     var resume = keepPlaying != null ? keepPlaying : playing;
     playing = false;
     abortAll();
+    stopVoice();
     hideCallout();
     hideKey();
     hideSubtitle();
@@ -734,7 +762,7 @@
     else if (act === 'fs') { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(function () {}); }
   });
   modeSel.addEventListener('change', function () { settings.mode = modeSel.value; if (playing) jump(idx, true); modeSel.blur(); });
-  speedSel.addEventListener('change', function () { settings.speed = +speedSel.value || 1; speedSel.blur(); });
+  speedSel.addEventListener('change', function () { settings.speed = +speedSel.value || 1; if (voiceAudio) voiceAudio.playbackRate = settings.speed; speedSel.blur(); });
   paceSel.addEventListener('change', function () { settings.timing = paceSel.value; if (playing) jump(idx, true); paceSel.blur(); });
   $('.dp-progress').addEventListener('click', function (e) {
     var r = track.getBoundingClientRect();
@@ -774,5 +802,6 @@
   window.demoPlayer = {
     play: play, pause: pause, jump: jump,
     get index() { return idx; }, get playing() { return playing; }, steps: steps,
+    get voice() { return voiceAudio ? { src: voiceAudio.src.slice(0, 40), paused: voiceAudio.paused, rate: voiceAudio.playbackRate } : null; },
   };
 })();

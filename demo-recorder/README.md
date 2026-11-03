@@ -31,11 +31,11 @@ Leave **Embed images & fonts** on (the default) so the file works offline and fo
 | `extension/background.js` | Holds recording state across page loads and streams screens and steps into IndexedDB. |
 | `extension/review.*`, `lib/build.js` | Merges screens that are identical, inlines assets, and assembles the file. |
 | `extension/player/` | Replays in sandboxed iframes (no scripts run). It double-buffers screens so changes look instant, animates the cursor, typing and scrolling, and supports captions, auto-zoom onto clicks and typing (switchable per step), guided hotspots, a timeline, speed control and fullscreen. |
-| `tools/demo.mjs` | CLI: `info`, `strings`, `replace`, `unpack`, `pack`, `upgrade`. |
+| `tools/demo.mjs` | CLI: `info`, `strings`, `replace`, `unpack`, `pack`, `texts`, `translate`, `voices`, `voice`, `upgrade`. |
 
 ### Player controls
 
-Space plays/pauses, ←/→ move between steps, and the timeline is clickable. **Pace** switches between *Natural* (each step paced by its animations) and *As recorded* (each step lasts as long as in the original recording or video, which keeps a voice-over in sync). On the review page you can also set the pace and override how long any single step lasts (⏱ seconds); an open Preview tab reloads by itself after each change, at the same step. URL options (they override the export settings): `?mode=guided`, `?timing=recorded`, `?step=5`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
+Space plays/pauses, ←/→ move between steps, and the timeline is clickable. **Pace** switches between *Natural* (each step paced by its animations) and *As recorded* (each step lasts as long as in the original recording or video, which keeps a voice-over in sync). On the review page you can also set the pace and override how long any single step lasts (⏱ seconds); an open Preview tab reloads by itself after each change, at the same step. URL options (they override the export settings): `?mode=guided`, `?timing=recorded`, `?step=5`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?subs=0`, `?voice=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
 
 ## Convert a video demo (Claude Code)
 
@@ -72,7 +72,7 @@ Export it with **Export HTML** and send the `.demo.html` file:
 - **To watch it:** anyone can open the file in a browser. No extension or login needed.
 - **To edit it in their own Demo Recorder:** they click **⬆ Import demo** at the top of the Recordings list in the review page, or drop the file there. The popup also has an **Import demo…** button. The demo then becomes a normal recording they can preview, edit (steps, captions, narration, zoom, export options) and export again.
 - Demos personalized with Claude Code can be imported the same way, to check or tweak them before sending.
-- The narration **text** travels with the file; the original narration **audio** doesn't.
+- The narration **text** and any generated **voice clips** travel with the file; the original microphone recording doesn't.
 
 ## Personalize with Claude Code
 
@@ -106,7 +106,44 @@ While recording, a small **Narration** window shows the volume bar and your word
 - **Live transcript (free, Google Chrome only):** Chrome transcribes while you talk, and each sentence is put on the step that was on screen when you said it. Chrome sends the audio to Google for this.
 - **ElevenLabs (more accurate):** add your ElevenLabs API key **once** in **⚙ Settings** (the link under *Import demo* on the recordings page, or ⚙ in the popup); every recording uses it. **Test key** checks it has the *Speech to Text* permission. Then click **Transcribe with ElevenLabs** on a recording. It uses speech-to-text (`scribe_v2`) with word timings to fill each step's narration.
 - Each step's narration is plain text you can edit in the review page. It's exported as `narration` on the step and shown as **subtitles** in the player (export option "Narration subtitles", or `?subs=0`). Claude Code can rewrite it per prospect like any other text.
-- The original audio stays with the recording: play it, download it, or transcribe it again. It isn't embedded in exports. The plan is to generate the voice from the (personalized) text with ElevenLabs text-to-speech.
+- The original audio stays with the recording: play it, download it, or transcribe it again. It isn't embedded in exports. To put a voice in the export, generate one from the text (next section).
+
+## Voice-over and language versions
+
+**Generate the voice (ElevenLabs text-to-speech).** On the review page, the **🔊 Voice-over** card turns each step's narration text into speech:
+
+1. Pick a voice. The list comes from your ElevenLabs account; set the default voice and the model in ⚙ Settings.
+2. Click **Generate voice**.
+
+Each step gets a clip (▶ to listen to it next to its text). The clips are embedded in the export, and the player speaks them with the subtitles. Each step lasts at least as long as its sentence, and a sentence is never cut off by the next one. The **Voice-over audio** export option (or `?voice=0`) turns the sound off.
+
+If you edit a step's text afterwards, its clip is marked outdated. **Voice the rest** redoes only those steps. The key needs the **Text to Speech** and **Voices (read)** permissions; it's the same key as for transcription.
+
+**Language versions (Claude).**
+
+1. Add an **Anthropic API key** in ⚙ Settings (from console.anthropic.com). The model defaults to `claude-opus-5-5`.
+2. In the **🌐 Language version** card, pick a language and click **Create version**.
+
+Claude translates the narration, captions, typed values and, if ticked, all the text on the screens. The result is a **new recording**, named "… · Català" for example, which you can review and edit like any other. If "Generate the voice" is ticked, it's then voiced in that language with the same voice, since ElevenLabs' multilingual voices speak about 30 languages. Names, emails, numbers and brands are kept as they are. Text inside images can't be translated.
+
+**With Claude Code**, you don't need an Anthropic key: Claude translates the demo itself.
+
+```bash
+cd demo-recorder
+claude
+> /translate-demo ~/Downloads/pipeline.demo.html Catalan
+```
+
+Or step by step:
+
+```bash
+node tools/demo.mjs texts pipeline.demo.html ca/texts.json          # every string once; fill in "to"
+node tools/demo.mjs translate pipeline.demo.html ca/texts.json ca/pipeline-ca.demo.html --lang ca
+node tools/demo.mjs voices                                           # ElevenLabs voices (key: ELEVENLABS_API_KEY or .env)
+node tools/demo.mjs voice ca/pipeline-ca.demo.html --voice "Laura" --lang ca
+```
+
+After `/personalize-demo`, run `node tools/demo.mjs voice <file>` to re-voice the rewritten narration. Only the changed steps are voiced again.
 
 ## Test
 

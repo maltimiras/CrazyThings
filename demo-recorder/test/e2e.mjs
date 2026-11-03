@@ -554,6 +554,123 @@ try {
   assert(!perRec.card && perRec.sidebar, 'recordings no longer have their own Settings card; the Narration card shows the shared key is set');
   await st.close();
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+  // ---- voice-over (ElevenLabs text-to-speech) and a translated version (Claude), both stubbed
+  const mp3 = path.join(OUT, 'clip.mp3');
+  const { spawnSync } = await import('node:child_process');
+  spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=22050', '-t', '0.8', '-ac', '1', '-b:a', '32k', mp3]);
+  const clipB64 = fs.readFileSync(mp3).toString('base64');
+  const vp = await ctx.newPage();
+  vp.on('pageerror', (e) => errors.push('voice: ' + e.message));
+  vp.on('dialog', (d) => d.accept());
+  await vp.goto(`chrome-extension://${extId}/review.html#${narSession}`);
+  await vp.evaluate(() => chrome.storage.local.set({ elKey: 'el-test', anKey: 'sk-ant-test', anModel: '' }));
+  await vp.reload();
+  await vp.waitForSelector('#vo-gen');
+  await vp.evaluate((clip) => {
+    const orig = window.fetch;
+    window.__calls = [];
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.fetch = async (url, init = {}) => {
+      url = String(url);
+      if (url.startsWith('https://api.elevenlabs.io/v1/voices')) return json({ voices: [{ voice_id: 'VOICEA0000000000000a', name: 'Aria', labels: { gender: 'female' } }, { voice_id: 'VOICEB0000000000000b', name: 'Biel', labels: { gender: 'male' } }] });
+      if (url.startsWith('https://api.elevenlabs.io/v1/text-to-speech/')) {
+        window.__calls.push({ kind: 'tts', url, key: init.headers['xi-api-key'], body: JSON.parse(init.body) });
+        return json({ audio_base64: clip, alignment: { character_end_times_seconds: [0.8] } });
+      }
+      if (url === 'https://api.anthropic.com/v1/messages') {
+        const body = JSON.parse(init.body);
+        window.__calls.push({ kind: 'claude', key: init.headers['x-api-key'], browser: init.headers['anthropic-dangerous-direct-browser-access'], model: body.model, system: body.system });
+        const list = JSON.parse(body.messages[0].content.split('Items:\n')[1]);
+        return json({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ translations: list.map((x) => ({ id: x.id, text: '[ca] ' + x.text })) }) }] });
+      }
+      return orig(url, init);
+    };
+  }, clipB64);
+  await vp.click('#vo-reload');
+  await vp.waitForFunction(() => document.querySelectorAll('#vo-voice option').length === 2);
+  await vp.selectOption('#vo-voice', 'VOICEB0000000000000b');
+  await vp.click('#vo-gen');
+  await vp.waitForFunction(() => /Voice-over/.test(document.body.textContent) && document.querySelector('.vclip button'), null, { timeout: 10000 });
+  const vinfo = await vp.evaluate(async (id) => {
+    const { db } = await import('./lib/db.js');
+    const s = await db.getSession(id);
+    const steps = await db.getSteps(id);
+    return { vo: s.voiceover, n: Object.keys(s.voices || {}).length, voiced: steps.filter((x) => x.voice).map((x) => ({ ms: x.voiceMs, same: x.voiceText === x.narration })),
+      narrated: steps.filter((x) => x.narration).length, calls: window.__calls, info: document.getElementById('vo-info').textContent };
+  }, narSession);
+  assert(vinfo.voiced.length === vinfo.narrated && vinfo.n === vinfo.narrated && vinfo.voiced.every((v) => v.ms === 950 && v.same),
+    `Generate voice makes one clip per narrated step (${vinfo.voiced.length}/${vinfo.narrated}) · "${vinfo.info}"`);
+  const tts = vinfo.calls.filter((c) => c.kind === 'tts');
+  assert(tts[0].key === 'el-test' && /VOICEB0000000000000b\/with-timestamps/.test(tts[0].url) && tts[0].body.model_id === 'eleven_multilingual_v2' && vinfo.vo.name === 'Biel',
+    'text-to-speech uses the shared key, the chosen voice and the multilingual model');
+  await vp.screenshot({ path: path.join(OUT, 'voice.png'), fullPage: true });
+
+  // Export → the clips are embedded and play with the steps (a real click = user gesture for sound).
+  const voHtml = await vp.evaluate(async (id) => {
+    const { buildDemoHtml } = await import('./lib/build.js');
+    return (await buildDemoHtml(id, { inline: false })).html;
+  }, narSession);
+  const voParsed = parseDemo(voHtml);
+  const voSteps = voParsed.manifest.steps.filter((x) => x.voice);
+  assert(voSteps.length === vinfo.narrated && voSteps.every((x) => /^data:audio\/mpeg;base64,/.test(voParsed.assets[x.voice] || '')) && voParsed.manifest.voiceover.voiceId === 'VOICEB0000000000000b',
+    'the export embeds the voice clips as assets referenced by step.voice');
+  const file5 = path.join(OUT, 'voice.demo.html');
+  fs.writeFileSync(file5, voHtml);
+  const p5 = await ctx.newPage();
+  p5.on('pageerror', (e) => errors.push('voice player: ' + e.message));
+  await p5.goto('file://' + file5);
+  await p5.bringToFront();
+  await p5.waitForFunction(() => window.demoPlayer);
+  await p5.click('.dp-cover button');
+  await p5.waitForFunction(() => window.demoPlayer.voice && !window.demoPlayer.voice.paused, null, { timeout: 5000 });
+  const spoke = await p5.evaluate(() => ({ v: window.demoPlayer.voice, sub: document.querySelector('.dp-subtitle').textContent }));
+  await p5.evaluate(() => window.demoPlayer.pause());
+  const afterPause = await p5.evaluate(() => window.demoPlayer.voice);
+  assert(spoke.v && /^data:audio\/mpeg/.test(spoke.v.src) && spoke.sub.length > 0 && afterPause === null, 'the player speaks each clip with its subtitle, and pause stops it');
+  await p5.close();
+
+  // Edit the narration → that clip is outdated (not exported) until regenerated.
+  const firstNar = await vp.evaluate(() => [...document.querySelectorAll('textarea.nar')].findIndex((t) => t.value));
+  await vp.fill(`#steps tr:nth-child(${firstNar + 1}) textarea.nar`, 'Welcome, everyone, to the new pipeline.');
+  await vp.press(`#steps tr:nth-child(${firstNar + 1}) textarea.nar`, 'Tab');
+  await vp.waitForFunction(() => document.querySelector('.vclip.stale'));
+  const staleOut = await vp.evaluate(async (id) => {
+    const { buildDemoData } = await import('./lib/build.js');
+    return (await buildDemoData(id)).manifest.steps.filter((x) => x.voice).length;
+  }, narSession);
+  await vp.click('#vo-gen');
+  await vp.waitForFunction(() => !document.querySelector('.vclip.stale') && document.querySelector('.vclip button'), null, { timeout: 10000 });
+  const ttsAfter = await vp.evaluate(() => window.__calls.filter((c) => c.kind === 'tts').map((c) => c.body.text));
+  assert(staleOut === vinfo.narrated - 1 && ttsAfter.length === tts.length + 1 && ttsAfter[ttsAfter.length - 1] === 'Welcome, everyone, to the new pipeline.',
+    'editing the narration marks its clip outdated; Generate voice redoes only that step');
+
+  // Language version: Claude translates screens, captions and narration into a new recording, then it is voiced.
+  await vp.selectOption('#lv-lang', 'ca');
+  await vp.click('#lv-go');
+  await vp.waitForFunction((id) => location.hash.slice(1) !== id && document.getElementById('title') && /Català/.test(document.getElementById('title').value), narSession, { timeout: 15000 });
+  const ver = await vp.evaluate(async () => {
+    const { db } = await import('./lib/db.js');
+    const { buildDemoData } = await import('./lib/build.js');
+    const id = location.hash.slice(1);
+    const s = await db.getSession(id);
+    const d = await buildDemoData(id);
+    const html = Object.values(d.screens).join('');
+    return { title: s.title, lang: d.manifest.lang, versionOf: s.versionOf,
+      narr: d.manifest.steps.filter((x) => x.narration).map((x) => x.narration),
+      voiced: d.manifest.steps.filter((x) => x.voice && d.assets[x.voice]).length,
+      screensTranslated: (html.match(/\[ca\] /g) || []).length,
+      claude: window.__calls.filter((c) => c.kind === 'claude'),
+      lastTts: window.__calls.filter((c) => c.kind === 'tts').slice(-1)[0] };
+  });
+  assert(ver.versionOf && ver.versionOf.id === narSession && ver.lang === 'ca' && / · Català$/.test(ver.title), 'Create version makes a new recording in the chosen language: ' + ver.title);
+  assert(ver.narr.length && ver.narr.every((t) => t.startsWith('[ca] ')) && ver.screensTranslated > 10, `narration and screen text are translated (${ver.screensTranslated} screen strings)`);
+  assert(ver.claude.length >= 1 && ver.claude[0].key === 'sk-ant-test' && ver.claude[0].browser === 'true' && ver.claude[0].model === 'claude-opus-5-5' && /Catalan/.test(ver.claude[0].system),
+    'translation calls Claude with the Anthropic key from Settings (claude-opus-5-5)');
+  assert(ver.voiced === ver.narr.length && ver.lastTts.body.text.startsWith('[ca] ') && /VOICEB0000000000000b/.test(ver.lastTts.url), 'the version is voiced in the new language with the same voice');
+  await vp.screenshot({ path: path.join(OUT, 'version.png'), fullPage: true });
+  await vp.close();
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
   console.log('\nAll good. Screenshots in', OUT);
 } finally {
   await ctx.close();
