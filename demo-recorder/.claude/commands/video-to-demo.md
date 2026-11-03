@@ -13,7 +13,7 @@ Work in `demos/<slug>/` (slug from the video name). `<work>` = `demos/<slug>/vid
 1. Check `ffmpeg -version`. If it's missing, tell the user how to install it and stop.
 2. Run `node tools/video.mjs prepare <video> <work>`. Read `<work>/video.json`: duration, `viewport` (the CSS size the screens must have) and the key-frame list.
    - If the video zooms or crops (the UI doesn't fill the frame), or the guessed `dpr` looks wrong (UI text clearly too small or too large), rerun with `--dpr`.
-3. Run `node tools/video.mjs transcribe <work> --lang <es|ca|en…>` (needs `ELEVENLABS_API_KEY`). If the key is missing, ask the user for it, or continue without narration and say so.
+3. Run `node tools/video.mjs transcribe <work> --lang <es|ca|en…>`. The key is read from `ELEVENLABS_API_KEY`, or from a `.env` file (`ELEVENLABS_API_KEY=…`) in the video's folder, its parent folders, the work folder or the current folder. **Never print, copy or commit the key.** If no key is found, ask the user to add a `.env` next to their videos, or continue without narration and say so.
 4. Run `node tools/video.mjs scaffold <work> --slug <slug> --title "<title>" --out <demo>`. The demo is already playable as a slideshow of frames. Read `<demo>/NOTES.md` (frames, times and narration per step).
 5. Look at the contact sheets `<work>/frames/sheet-*.png` (12 frames per sheet, in order) to understand the whole flow. Then open individual frames.
 

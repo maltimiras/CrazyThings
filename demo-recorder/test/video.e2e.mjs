@@ -46,6 +46,7 @@ assert(fs.existsSync(path.join(work, 'audio.mp3')) && fs.existsSync(path.join(wo
 const w = (text, start) => ({ text, start, end: start + 0.3, type: 'word' });
 const words = [w('Bienvenidos', 0.5), w('al', 0.9), w('pipeline.', 1.1), w('Abrimos', 4.8), w('una', 5.1), w('oportunidad.', 5.3), w('Y', 9.0), w('guardamos.', 9.2)];
 let got = null;
+let transcribeOut = '';
 const server = http.createServer((req, res) => {
   let n = 0;
   req.on('data', (c) => (n += c.length));
@@ -58,10 +59,13 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 try {
   await new Promise((resolve, reject) => {
-    const p = spawn('node', ['tools/video.mjs', 'transcribe', work, '--lang', 'es'], {
-      cwd: ROOT, env: { ...process.env, ELEVENLABS_API_KEY: 'test-key', ELEVENLABS_BASE_URL: `http://127.0.0.1:${server.address().port}` },
-    });
+    // The key comes from a .env file next to the video (no environment variable).
+    fs.writeFileSync(path.join(OUT, '.env'), '# ElevenLabs\nELEVENLABS_API_KEY="test-key"\n');
+    const env = { ...process.env, ELEVENLABS_BASE_URL: `http://127.0.0.1:${server.address().port}` };
+    delete env.ELEVENLABS_API_KEY;
+    const p = spawn('node', ['tools/video.mjs', 'transcribe', work, '--lang', 'es'], { cwd: ROOT, env });
     let err = '';
+    p.stdout.on('data', (d) => (transcribeOut += d));
     p.stderr.on('data', (d) => (err += d));
     p.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(err))));
   });
@@ -69,6 +73,8 @@ try {
   server.close();
 }
 assert(got && got.url === '/v1/speech-to-text' && got.key === 'test-key' && got.bytes > 5000, 'transcribe posts the audio to ElevenLabs speech-to-text');
+assert(transcribeOut.includes(path.join(OUT, '.env')) && !transcribeOut.includes('test-key'),
+  'the key is read from the .env next to the video, and never printed');
 
 const demoDir = path.join(OUT, 'demo', 'work');
 tool(['scaffold', work, '--slug', 'walkthrough', '--title', 'Walkthrough', '--out', demoDir]);

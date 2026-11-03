@@ -4,7 +4,7 @@
 // rebuilds the screens as HTML following .claude/commands/video-to-demo.md.
 //
 //   node tools/video.mjs prepare    <video> <work> [--max-frames 60] [--dpr 2] [--scene 0.012]
-//   node tools/video.mjs transcribe <work> [--lang es]            (needs ELEVENLABS_API_KEY)
+//   node tools/video.mjs transcribe <work> [--lang es]            (ELEVENLABS_API_KEY, or a .env next to the video)
 //   node tools/video.mjs scaffold   <work> [--slug name] [--title "…"] [--out dir]
 //   node tools/video.mjs frames     <work> 12.0,12.5,13.0          (extra frames at given times)
 //   node tools/video.mjs crop       <work> <frame.png> x y w h <name>   (image asset from a frame)
@@ -17,7 +17,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { parseShowinfo, selectFrames, guessViewport, frameName, buildScaffold, resolveScreen } from './videolib.mjs';
+import { parseShowinfo, selectFrames, guessViewport, frameName, buildScaffold, resolveScreen, parseEnv } from './videolib.mjs';
 
 // ------------------------------------------------------------------ helpers
 function run(bin, args, { allowFail = false } = {}) {
@@ -118,9 +118,39 @@ function cmdPrepare(video, work, opts) {
   console.log(`${frames.length} key frames, ${sheets.length} contact sheet(s), viewport ${viewport.w}×${viewport.h} (dpr ${viewport.dpr})${info.hasAudio ? ', audio.mp3' : ', no audio track'} → ${work}/`);
 }
 
+// The ElevenLabs key: the environment, or a .env file next to the video (or its parent folders,
+// or the current folder). Only the file path is ever printed, never the key.
+function findApiKey(work) {
+  if (process.env.ELEVENLABS_API_KEY) return { key: process.env.ELEVENLABS_API_KEY, from: 'ELEVENLABS_API_KEY' };
+  const dirs = [];
+  let source = null;
+  try { source = loadVideo(work).source; } catch { /* prepare not run yet */ }
+  for (let d = source ? path.dirname(source) : null, i = 0; d && i < 4; i++) {
+    dirs.push(d);
+    const up = path.dirname(d);
+    if (up === d) break;
+    d = up;
+  }
+  dirs.push(path.resolve(work), process.cwd());
+  for (const dir of [...new Set(dirs)]) {
+    for (const name of ['.env', '.env.local', 'elevenlabs.env']) {
+      const f = path.join(dir, name);
+      if (!fs.existsSync(f)) continue;
+      const env = parseEnv(fs.readFileSync(f, 'utf8'));
+      const key = env.ELEVENLABS_API_KEY || env.XI_API_KEY || env.ELEVEN_API_KEY;
+      if (key) return { key, from: f };
+    }
+  }
+  return null;
+}
+
 async function cmdTranscribe(work, opts) {
-  const key = process.env.ELEVENLABS_API_KEY;
-  if (!key) throw new Error('Set ELEVENLABS_API_KEY (your ElevenLabs API key) first.');
+  const found = findApiKey(work);
+  if (!found) {
+    throw new Error('No ElevenLabs API key found. Set ELEVENLABS_API_KEY, or put a .env file next to the video containing:\n  ELEVENLABS_API_KEY=your_key');
+  }
+  const key = found.key;
+  console.log(`Using the ElevenLabs key from ${found.from}`);
   const audio = path.join(work, 'audio.mp3');
   if (!fs.existsSync(audio)) throw new Error('No audio.mp3 in ' + work + ' (the video had no audio track?)');
   const base = (process.env.ELEVENLABS_BASE_URL || 'https://api.elevenlabs.io').replace(/\/$/, '');

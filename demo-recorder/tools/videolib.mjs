@@ -42,6 +42,20 @@ export function guessViewport(width, height, dpr) {
   return { w: Math.round(width / d), h: Math.round(height / d), dpr: d };
 }
 
+// Read KEY=VALUE lines of a .env file (comments, `export`, quotes allowed).
+export function parseEnv(text) {
+  const out = {};
+  for (const line of String(text).split(/\r?\n/)) {
+    const m = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (!m) continue;
+    let v = m[2];
+    if (/^(['"]).*\1$/.test(v)) v = v.slice(1, -1);
+    else v = v.replace(/\s+#.*$/, '');
+    out[m[1]] = v;
+  }
+  return out;
+}
+
 export function frameName(i, t) {
   return `f${String(i + 1).padStart(3, '0')}_${t.toFixed(1).padStart(5, '0')}s.png`;
 }

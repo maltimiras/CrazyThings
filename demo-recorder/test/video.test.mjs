@@ -40,3 +40,9 @@ test('buildScaffold makes one step per frame with narration from the transcript'
   assert.match(notes, /\| 2 \| change \| 4\.4 s \| s2 \|/);
   assert.equal(resolveScreen('<style data-demo-css="app"></style><img src="demo-asset:a1">', { app: 'b{}' }, { a1: 'data:x' }), '<style>b{}</style><img src="data:x">');
 });
+
+test('parseEnv reads keys from a .env file', async () => {
+  const { parseEnv } = await import('../tools/videolib.mjs');
+  const env = parseEnv('# comment\nexport ELEVENLABS_API_KEY="sk_abc"\nOTHER = plain value # note\nXI_API_KEY=\'x1\'\n\nbroken line');
+  assert.deepEqual(env, { ELEVENLABS_API_KEY: 'sk_abc', OTHER: 'plain value', XI_API_KEY: 'x1' });
+});

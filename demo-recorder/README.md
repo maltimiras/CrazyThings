@@ -43,10 +43,12 @@ Have an older demo as a video with a voice-over? Claude Code can rebuild it as a
 
 ```bash
 cd demo-recorder
-export ELEVENLABS_API_KEY=…          # for the voice-over transcript
+export ELEVENLABS_API_KEY=…   # or keep it in a .env file next to your videos (see below)
 claude
 > /video-to-demo ~/Videos/acme-walkthrough.mp4
 ```
+
+The ElevenLabs key can also live in a `.env` file in your videos folder (or a parent folder), so you don't have to export it each time: `ELEVENLABS_API_KEY=your_key`. Keep it out of git; `demo-recorder/.gitignore` already ignores `.env` files.
 
 Needs `ffmpeg` (`brew install ffmpeg` / `winget install ffmpeg` / `apt install ffmpeg`). Playwright is optional (`npm i -D playwright && npx playwright install chromium`); Claude uses it to compare its HTML with the video frames.
 
