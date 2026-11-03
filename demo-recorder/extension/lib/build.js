@@ -11,7 +11,10 @@ export const DEFAULT_SETTINGS = {
   browserFrame: true,    // draw a fake browser window with the URL bar
   cursor: true,          // animated mouse cursor and click ripples
   showKeys: true,        // keycap overlay for key presses (Enter, Esc, Alt+K…)
+  zoom: false,           // auto-zoom the camera onto clicks and typing (per step: step.zoom = false | number)
+  zoomLevel: 1.8,
   captions: true,        // show step captions (notes) as callouts
+  subtitles: true,       // show step narration (spoken text) as subtitles
   background: 'dark',    // 'dark' | 'light' | 'none' (white, no shadow — for embedding)
 };
 
@@ -73,7 +76,7 @@ export async function buildDemoData(sessionId) {
   for (const st of steps) {
     if (!st.screen || !remap[st.screen]) continue;
     const o = { id: outSteps.length + 1, type: st.type, screen: remap[st.screen] };
-    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold']) {
+    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration']) {
       if (st[k] !== undefined && st[k] !== null && st[k] !== '') o[k] = st[k];
     }
     o.t = st.t - t0;

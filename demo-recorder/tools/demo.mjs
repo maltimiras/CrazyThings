@@ -144,7 +144,7 @@ function cmdInfo(input) {
     else if (s.type === 'key') d = s.key;
     else if (s.type === 'scroll') d = `→ ${s.top}px`;
     else if (s.url) d = s.url;
-    const note = s.note ? `   📝 ${s.note}` : '';
+    const note = (s.zoom === false ? '   [zoom off]' : typeof s.zoom === 'number' ? `   [zoom ${s.zoom}×]` : '') + (s.note ? `   📝 ${s.note}` : '') + (s.narration ? `   🎙 ${s.narration.length > 60 ? s.narration.slice(0, 57) + '…' : s.narration}` : '');
     console.log(`${String(s.id).padStart(3)}  ${s.type.padEnd(8)} ${s.screen.padEnd(4)} ${s.target ? s.target.padEnd(5) : '     '} ${d}${note}`);
   }
 }
@@ -170,7 +170,7 @@ function cmdStrings(input, opts) {
     m.url && add(m.url, `${id}.url`);
   }
   for (const s of manifest.steps) {
-    for (const k of ['text', 'from', 'label', 'note']) if (s[k]) add(String(s[k]), `step${s.id}.${k}`);
+    for (const k of ['text', 'from', 'label', 'note', 'narration']) if (s[k]) add(String(s[k]), `step${s.id}.${k}`);
   }
   const kind = (t) =>
     /^[\w.+-]+@[\w-]+\.[\w.-]+$/.test(t) ? 'email' :
@@ -218,7 +218,7 @@ function cmdReplace(input, mapFile, out, opts) {
     if (meta.title) meta.title = R.raw(meta.title);
     if (meta.url) meta.url = R.raw(meta.url);
   }
-  for (const s of m.steps) for (const k of ['text', 'from', 'label', 'note', 'url']) if (typeof s[k] === 'string') s[k] = R.raw(s[k]);
+  for (const s of m.steps) for (const k of ['text', 'from', 'label', 'note', 'narration', 'url']) if (typeof s[k] === 'string') s[k] = R.raw(s[k]);
   save(data, out);
   console.log(`Replaced ${R.stats.hits} occurrence(s) → ${out}`);
 }

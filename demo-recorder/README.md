@@ -16,10 +16,10 @@ record in Chrome  ──►  review & caption  ──►  export demo.html  ─�
 
 ## Record
 
-1. Open your app in a normal tab and set the window to the size you want the demo to be.
-2. Click the toolbar icon, then **Start recording this tab**. A small `● REC` badge appears in the bottom-left of the page.
+1. Open your app in a normal tab.
+2. Click the toolbar icon. Under **Recording size**, pick the page size the demo should have (1280×720, 1440×900, 1920×1080, a custom size, or the current window). The window is resized so the page area is exactly that size, and put back afterwards if "Restore window size" is ticked. If the size doesn't fit your screen, or the page zoom isn't 100%, the popup says so. Then click **Start recording this tab**. A small `● REC` badge appears in the bottom-left of the page.
 3. Do the demo. Each click, typing session, special key (`Enter`, `Esc`, `Tab`, arrows, `Ctrl/⌘+…`), scroll, and settled DOM change becomes a step. Page navigations are followed automatically.
-4. Click **Stop & review**. The review page opens: delete noisy steps, add captions, set the export options (autoplay or guided, start automatically, speed, loop, control bar, browser frame, cursor, key-press overlay, captions, background), then **Preview** or **Export HTML**.
+4. Click **Stop & review**. The review page opens: delete noisy steps, add captions, set the export options (autoplay or guided, start automatically, speed, loop, control bar, browser frame, cursor, key-press overlay, captions, background, auto-zoom), then **Preview** or **Export HTML**.
 
 Leave **Embed images & fonts** on (the default) so the file works offline and for viewers who aren't logged in.
 
@@ -30,12 +30,12 @@ Leave **Embed images & fonts** on (the default) so the file works offline and fo
 | `extension/content.js` | Takes a **screen** (a full HTML snapshot) at each action. It removes scripts and event handlers, keeps form values (passwords masked), scroll positions, open shadow DOM (as declarative shadow DOM), same-origin iframes, and canvases/video (as images). The element being acted on gets `data-demo-target="tN"`. Stylesheets, including CSS-in-JS rules added through the CSSOM, are captured once and deduplicated. |
 | `extension/background.js` | Holds recording state across page loads and streams screens and steps into IndexedDB. |
 | `extension/review.*`, `lib/build.js` | Merges screens that are identical, inlines assets, and assembles the file. |
-| `extension/player/` | Replays in sandboxed iframes (no scripts run). It double-buffers screens so changes look instant, animates the cursor, typing and scrolling, and supports captions, guided hotspots, a timeline, speed control and fullscreen. |
+| `extension/player/` | Replays in sandboxed iframes (no scripts run). It double-buffers screens so changes look instant, animates the cursor, typing and scrolling, and supports captions, auto-zoom onto clicks and typing (switchable per step), guided hotspots, a timeline, speed control and fullscreen. |
 | `tools/demo.mjs` | CLI: `info`, `strings`, `replace`, `unpack`, `pack`, `upgrade`. |
 
 ### Player controls
 
-Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options (they override the export settings): `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
+Space plays/pauses, ←/→ move between steps, and the timeline is clickable. URL options (they override the export settings): `?mode=guided`, `?autoplay=1`, `?speed=1.5`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?bg=light|none`, `?zoom=1|0`. `window.demoPlayer` exposes `play()`, `pause()` and `jump(i)` for embedding.
 
 ## Personalize with Claude Code
 
@@ -54,10 +54,20 @@ node tools/demo.mjs replace pipeline.demo.html map.json demos/northwind/work   #
 node tools/demo.mjs pack demos/northwind/work demos/northwind/northwind.demo.html
 ```
 
+## Narration (voice-over)
+
+Tick **🎙 Record narration** in the popup and talk while you record. The first time, a tab asks for microphone access.
+
+- The microphone is recorded through page changes and pauses with the recording.
+- **Live transcript (free, Google Chrome only):** Chrome transcribes while you talk, and each sentence is put on the step that was on screen when you said it. Chrome sends the audio to Google for this. Set the language in the review page under **Settings**.
+- **ElevenLabs (more accurate):** add your ElevenLabs API key under **Settings** in the review page, then click **Transcribe with ElevenLabs**. It uses speech-to-text (`scribe_v2`) with word timings to fill each step's narration.
+- Each step's narration is plain text you can edit in the review page. It's exported as `narration` on the step and shown as **subtitles** in the player (export option "Narration subtitles", or `?subs=0`). Claude Code can rewrite it per prospect like any other text.
+- The original audio stays with the recording: play it, download it, or transcribe it again. It isn't embedded in exports. The plan is to generate the voice from the (personalized) text with ElevenLabs text-to-speech.
+
 ## Test
 
 ```bash
-npm test     # loads the extension in headless Chromium, records examples/sample-app, exports, replays, asserts
+npm test     # unit tests, then the extension in headless Chromium: records examples/sample-app, exports, replays, asserts
 ```
 
 ## Limitations
