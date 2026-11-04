@@ -2,7 +2,7 @@ import { db } from './lib/db.js';
 import { buildDemoHtml, buildDemoData, describeStep, DEFAULT_SETTINGS } from './lib/build.js';
 import { assembleDemo } from './lib/format.js';
 import { collectTexts, applyTranslations, translateTexts, testClaudeKey, TRANSLATION_LANGUAGES, translationLanguage, DEFAULT_CLAUDE_MODEL } from './lib/translate.js';
-import { listVoices, voiceSteps, nextAssetId, DEFAULT_TTS_MODEL } from './lib/voice.js';
+import { listVoices, voiceSteps, nextAssetId, elErrorMessage, DEFAULT_TTS_MODEL } from './lib/voice.js';
 import { assignPhrases, livePhrases, wordsToPhrases, mergeNarration } from './lib/narration.js';
 import { LANGUAGES, languageName, toIso639 } from './lib/miclevel.js';
 import { importDemo } from './lib/import.js';
@@ -578,16 +578,25 @@ async function renderSettings() {
   const prefs = await chrome.storage.local.get(['elKey', 'elModel', 'elLang', 'narrationLang', 'elTtsModel', 'anKey', 'anModel', 'elVoice']);
   for (const el of main.querySelectorAll('[data-pref]')) {
     const key = el.dataset.pref;
-    el.value = prefs[key] || '';
+    const v = prefs[key] || '';
+    if (el.tagName === 'SELECT' && v && ![...el.options].some((o) => o.value === v)) el.add(new Option(v + ' (custom)', v));
+    el.value = v;
     el.onchange = async () => {
       await chrome.storage.local.set({ [key]: el.value.trim() });
       if (key === 'elKey') { $('key-result').className = 'muted'; $('key-result').textContent = el.value.trim() ? 'Saved.' : 'Removed.'; chrome.storage.local.remove('elVoices'); }
       if (key === 'anKey') { $('an-result').className = 'muted'; $('an-result').textContent = el.value.trim() ? 'Saved.' : 'Removed.'; }
     };
   }
+  // "Not set" warnings, and a format check (catches a key ID pasted instead of the key).
   const showMissing = () => {
-    $('el-missing').hidden = !!main.querySelector('[data-pref=elKey]').value.trim();
-    $('an-missing').hidden = !!main.querySelector('[data-pref=anKey]').value.trim();
+    const el = main.querySelector('[data-pref=elKey]').value.trim();
+    const an = main.querySelector('[data-pref=anKey]').value.trim();
+    $('el-missing').textContent = !el ? '⚠ Not set: transcription with ElevenLabs and the generated voice-over won\'t work.'
+      : '⚠ ElevenLabs API keys start with sk_. This looks like something else (a key ID?): copy the key itself.';
+    $('el-missing').hidden = !!el && el.startsWith('sk_');
+    $('an-missing').textContent = !an ? '⚠ Not set: translation (Create version) won\'t work.'
+      : '⚠ Anthropic API keys start with sk-ant-. Check you copied the whole key.';
+    $('an-missing').hidden = !!an && an.startsWith('sk-ant-');
   };
   showMissing();
   for (const k of ['elKey', 'anKey']) main.querySelector(`[data-pref=${k}]`).addEventListener('input', showMissing);
@@ -615,8 +624,14 @@ async function renderSettings() {
     try {
       voices = (await cachedVoices(refresh)).voices;
       fillVoices(pick, voices, prefs.elVoice || '');
-      if (!voices.length) vres.textContent = 'Add the ElevenLabs key above, then ↻ to load the voices.';
-    } catch (e) { vres.className = 'bad'; vres.textContent = e.message || String(e); }
+      if (!voices.length) { pick.innerHTML = '<option value="">No voices yet: add the key, then ↻</option>'; }
+      vres.className = 'muted';
+      vres.textContent = voices.length ? `${voices.length} voices on your ElevenLabs account. Each recording can use another one (🔊 Voice-over card).` : 'Add a valid ElevenLabs key above, then ↻ to load your voices.';
+    } catch (e) {
+      pick.innerHTML = '<option value="">Couldn\'t load the voices</option>';
+      vres.className = 'bad';
+      vres.textContent = e.message || String(e);
+    }
   };
   await loadVoices(false);
   $('voice-load').onclick = () => loadVoices(true);
@@ -639,24 +654,27 @@ async function testKey(key) {
   if (!key) { out.textContent = 'Enter a key first.'; return; }
   out.textContent = 'Testing…';
   try {
+    // Speech to Text: a tiny non-audio file is rejected as bad input (400/422) when the key is fine.
+    // An invalid key also answers 400, but with an authentication error: check the body, not just the status.
     const fd = new FormData();
     fd.append('file', new Blob([new Uint8Array(32)], { type: 'audio/mpeg' }), 'test.mp3');
     fd.append('model_id', 'scribe_v2');
     const res = await fetch('https://api.elevenlabs.io/v1/speech-to-text', { method: 'POST', headers: { 'xi-api-key': key }, body: fd });
     const body = await res.text();
-    if (res.status === 401 && /speech_to_text/.test(body)) {
+    const authBad = /invalid_api_key|authentication_error|key id used as api key/i.test(body);
+    if (authBad || res.status === 401 || res.status === 403 || res.status === 429) {
       out.className = 'bad';
-      out.textContent = 'The key works but is not allowed to use Speech to Text: edit it in ElevenLabs (Developers → API keys) and enable that permission.';
-    } else if (res.status === 401 || res.status === 403) {
-      out.className = 'bad';
-      out.textContent = 'ElevenLabs rejected the key (' + res.status + '). Check that it was copied completely.';
-    } else if (res.status === 429) {
-      out.className = 'bad';
-      out.textContent = 'Rate limit or quota reached on this ElevenLabs account.';
-    } else {
-      out.className = 'ok';
-      out.textContent = '✓ The key works for Speech to Text.';
+      out.textContent = elErrorMessage(res.status, body, 'speech_to_text');
+      return;
     }
+    // Voices (read), needed to pick a voice for the voice-over. Listing voices is free.
+    const v = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': key } });
+    const vb = v.ok ? '' : await v.text();
+    out.className = v.ok ? 'ok' : 'warn';
+    out.textContent = v.ok
+      ? '✓ The key works: Speech to Text ✓ · Voices ✓'
+      : '✓ Speech to Text works. ' + elErrorMessage(v.status, vb, 'voices_read');
+    if (v.ok) { chrome.storage.local.remove('elVoices'); }
   } catch (e) {
     out.className = 'bad';
     out.textContent = 'Could not reach ElevenLabs: ' + (e.message || e);

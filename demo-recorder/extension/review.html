@@ -22,6 +22,9 @@
     .keyrow { display: flex; flex: 1 1 auto; min-width: 0; gap: 4px; }
     .keyrow input, .keyrow select, .setgrid fieldset .keyrow input, .setgrid fieldset .keyrow select { flex: 1 1 auto; min-width: 0; width: auto !important; }
     .keyrow button { flex: none; padding: 4px 8px; }
+    /* Long options (voice descriptions) must not widen a box: controls size from 0 and grow to fit. */
+    .setgrid fieldset, .setgrid fieldset > *, .setgrid label { min-width: 0; overflow-wrap: anywhere; }
+    .setgrid fieldset label > select, .setgrid fieldset label > input, .setgrid fieldset .keyrow select, .setgrid fieldset .keyrow input { flex: 1 1 0; width: 0 !important; text-overflow: ellipsis; }
     .warn { color: #b45309; font-size: 13px; }
     .warn a { color: inherit; font-weight: 600; }
     #top-settings { position: fixed; top: 12px; right: 18px; z-index: 10; font-size: 14px; padding: 7px 12px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: inherit; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
@@ -202,7 +205,7 @@
       <fieldset>
         <legend>ElevenLabs key</legend>
         <label><span>API key</span><span class="keyrow"><input type="password" data-pref="elKey" autocomplete="off" placeholder="sk_…"><button type="button" id="key-show" title="Show / hide">👁</button></span></label>
-        <label><span>Model</span><input type="text" data-pref="elModel" placeholder="scribe_v2"></label>
+        <label><span>Transcription</span><select data-pref="elModel"><option value="">Scribe v2 · most accurate (default)</option><option value="scribe_v1">Scribe v1</option></select></label>
         <label><span>Language</span>
           <select data-pref="elLang"><option value="">Same as recording / detect</option><option value="en">English</option><option value="es">Spanish</option><option value="ca">Catalan</option><option value="fr">French</option><option value="de">German</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="nl">Dutch</option></select></label>
         <div class="warn" id="el-missing" hidden>⚠ Not set: transcription with ElevenLabs and the generated voice-over won't work.</div>
@@ -212,13 +215,13 @@
       <fieldset>
         <legend>Voice-over</legend>
         <label><span>Default voice</span><span class="keyrow"><select id="voice-pick"></select><button type="button" id="voice-load" title="Load the voices from ElevenLabs">↻</button><button type="button" id="voice-play" title="Listen">▶</button></span></label>
-        <label><span>Model</span><input type="text" data-pref="elTtsModel" placeholder="eleven_multilingual_v2"></label>
-        <div class="muted" id="voice-result">Each recording can use another voice (🔊 Voice-over card). <code>eleven_multilingual_v2</code> speaks 29 languages; <code>eleven_flash_v2_5</code> is faster and cheaper.</div>
+        <label><span>Model</span><select data-pref="elTtsModel"><option value="">Multilingual v2 · best quality, 29 languages (default)</option><option value="eleven_flash_v2_5">Flash v2.5 · fast and half the price, 32 languages</option><option value="eleven_turbo_v2_5">Turbo v2.5 · fast, 32 languages</option><option value="eleven_v3">v3 · most expressive, 70+ languages</option></select></label>
+        <div class="muted" id="voice-result">Each recording can use another voice (🔊 Voice-over card).</div>
       </fieldset>
       <fieldset>
         <legend>Claude (translation)</legend>
         <label><span>API key</span><span class="keyrow"><input type="password" data-pref="anKey" autocomplete="off" placeholder="sk-ant-…"><button type="button" id="an-show" title="Show / hide">👁</button></span></label>
-        <label><span>Model</span><input type="text" data-pref="anModel" placeholder="claude-opus-5-5"></label>
+        <label><span>Model</span><select data-pref="anModel"><option value="">Claude Opus 5.5 · best translations (default)</option><option value="claude-sonnet-5-5">Claude Sonnet 5.5 · faster, lower cost</option><option value="claude-haiku-5-5">Claude Haiku 5.5 · fastest, lowest cost</option></select></label>
         <div class="warn" id="an-missing" hidden>⚠ Not set: translation (Create version) won't work.</div>
         <div class="row"><button type="button" id="an-test">Test key</button><span id="an-result" class="muted"></span></div>
         <div class="muted">Used by <b>Create version</b> to translate the screens, captions and narration. Get a key at console.anthropic.com. Text is sent to Anthropic only when you create a version.</div>
