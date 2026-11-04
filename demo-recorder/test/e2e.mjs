@@ -555,6 +555,71 @@ try {
   assert(!perRec.card && perRec.sidebar, 'recordings no longer have their own Settings card; the Narration card shows the shared key is set');
   await st.close();
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+  // ---- click highlight: an orange box around the clicked element (or the card around it), rest dimmed
+  const hlMeasure = async (q, label) => {
+    const hp = await ctx.newPage();
+    hp.on('pageerror', (e) => errors.push('highlight: ' + e.message));
+    await hp.goto('file://' + file + q);
+    await hp.waitForFunction(() => window.demoPlayer);
+    const res = await hp.evaluate((label) => new Promise((done) => {
+      const P = window.demoPlayer;
+      const i = label ? P.steps.findIndex((s) => s.type === 'click' && s.label === label)
+        : P.steps.findIndex((s) => s.type === 'click' && s.target && P.steps[P.steps.indexOf(s) + 1] && P.steps[P.steps.indexOf(s) + 1].type === 'change');
+      P.jump(i, true);
+      const t0 = performance.now();
+      let box = null, rect = null, hidden = null, color = '';
+      (function tick() {
+        if (!box && P.index === i && P.highlight) {
+          setTimeout(() => {
+            box = P.highlight;
+            const frame = document.querySelector('.dp-frame.on');
+            const fr = frame.getBoundingClientRect(), k = fr.width / frame.contentWindow.innerWidth;
+            const el = frame.contentDocument.querySelector(`[data-demo-target~="${P.steps[i].target}"]`);
+            const r = el.getBoundingClientRect();
+            rect = { left: fr.left + r.left * k, top: fr.top + r.top * k, right: fr.left + r.right * k, bottom: fr.top + r.bottom * k };
+            color = getComputedStyle(document.querySelector('.dp-hl')).outlineColor;
+          }, 150);
+        }
+        if (box && P.index === i + 1 && hidden == null) setTimeout(() => { hidden = P.highlight === null; }, 200);
+        if (hidden != null || (label && rect) || performance.now() - t0 > 9000) {
+          P.pause();
+          return done({ box: box && { left: box.left, top: box.top, right: box.right, bottom: box.bottom }, rect, hidden, color });
+        }
+        requestAnimationFrame(tick);
+      })();
+    }), label);
+    if (q.includes('shot')) await hp.screenshot({ path: path.join(OUT, 'highlight.png') });
+    await hp.close();
+    return res;
+  };
+  const near = (a, b) => Math.abs(a - b) < 3;
+  const hEl = await hlMeasure('?zoom=0&speed=2');
+  assert(hEl.box && near(hEl.box.left, hEl.rect.left) && near(hEl.box.right, hEl.rect.right) && near(hEl.box.top, hEl.rect.top) && near(hEl.box.bottom, hEl.rect.bottom),
+    'click highlight: the orange box surrounds the clicked element');
+  assert(hEl.hidden === true && /250, 70, 22|rgb\(250, 70, 22\)/.test(hEl.color), 'the box is orange (#FA4616) and hides on the next page update ' + hEl.color);
+  const hCard = await hlMeasure('?zoom=0&speed=2&highlight=card&hlcolor=00a3e0', 'Deal name');
+  assert(hCard.box && hCard.box.left <= hCard.rect.left + 1 && hCard.box.right >= hCard.rect.right - 1 && hCard.box.top <= hCard.rect.top + 1 && hCard.box.bottom >= hCard.rect.bottom - 1 &&
+    (hCard.box.right - hCard.box.left) * (hCard.box.bottom - hCard.box.top) > (hCard.rect.right - hCard.rect.left) * (hCard.rect.bottom - hCard.rect.top) * 1.3 && /0, 163, 224/.test(hCard.color),
+    '?highlight=card boxes the card around the element (and ?hlcolor sets the color) ' + JSON.stringify(hCard));
+  const hOff = await hlMeasure('?zoom=0&speed=2&highlight=0');
+  assert(!hOff.box, '?highlight=0 shows no box');
+  // Per-step override from the review page ends up in the export.
+  const hr = await ctx.newPage();
+  await hr.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
+  await hr.waitForSelector('#steps td.z select[title^="Highlight"]');
+  await hr.selectOption('#steps td.z select[title^="Highlight"] >> nth=0', 'off');
+  await hr.selectOption('[data-setting=highlight]', 'card');
+  await sleep(300);
+  const hx = await hr.evaluate(async (id) => {
+    const { buildDemoData } = await import('./lib/build.js');
+    const d = await buildDemoData(id);
+    return { set: d.manifest.settings.highlight, off: d.manifest.steps.filter((x) => x.highlight === false).length };
+  }, sessionId);
+  await hr.close();
+  assert(hx.set === 'card' && hx.off === 1, 'the review page saves the highlight setting and a per-step "Box: off"');
+  await hlMeasure('?zoom=1&speed=2&shot=1', 'Deal name');
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
   // ---- voice-over (ElevenLabs text-to-speech) and a translated version (Claude), both stubbed
   const mp3 = path.join(OUT, 'clip.mp3');
   const { spawnSync } = await import('node:child_process');
@@ -591,7 +656,7 @@ try {
   await vp.waitForFunction(() => document.querySelectorAll('#vo-voice option').length === 2);
   await vp.selectOption('#vo-voice', 'VOICEB0000000000000b');
   await vp.click('#vo-gen');
-  await vp.waitForFunction(() => /Voice-over/.test(document.body.textContent) && document.querySelector('.vclip button'), null, { timeout: 10000 });
+  await vp.waitForFunction(() => document.querySelector('.vclip button') && /narrated steps voiced/.test(document.getElementById('vo-info').textContent), null, { timeout: 10000 });
   const vinfo = await vp.evaluate(async (id) => {
     const { db } = await import('./lib/db.js');
     const s = await db.getSession(id);
@@ -681,6 +746,7 @@ try {
     'editing the narration marks its clip outdated; Generate voice redoes only that step');
 
   // Language version: Claude translates screens, captions and narration into a new recording, then it is voiced.
+  await vp.waitForFunction(() => /narrated steps voiced/.test((document.getElementById('vo-info') || {}).textContent || '')); // re-rendered
   await vp.selectOption('#lv-lang', 'ca');
   await vp.click('#lv-go');
   await vp.waitForFunction((id) => location.hash.slice(1) !== id && document.getElementById('title') && /Català/.test(document.getElementById('title').value), narSession, { timeout: 15000 });

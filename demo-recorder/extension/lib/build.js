@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS = {
   zoomLevel: 1.8,
   captions: true,        // show step captions (notes) as callouts
   subtitles: true,       // show step narration (spoken text) as subtitles
+  highlight: 'auto',     // orange box around what is clicked/typed into: 'auto' (card for small icons) | 'element' | 'card' | 'off'
+  highlightColor: '#FA4616',
   voice: true,           // play the voice-over clips (step.voice, ElevenLabs text-to-speech) when the demo has them
   background: 'dark',    // 'dark' | 'light' | 'none' (white, no shadow — for embedding)
 };
@@ -78,7 +80,7 @@ export async function buildDemoData(sessionId) {
   for (const st of steps) {
     if (!st.screen || !remap[st.screen]) continue;
     const o = { id: outSteps.length + 1, type: st.type, screen: remap[st.screen] };
-    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration', 'narrationEnd', 'duration', 'voice', 'voiceMs', 'voiceText']) {
+    for (const k of ['target', 'x', 'y', 'from', 'text', 'key', 'top', 'left', 'url', 'label', 'note', 'hold', 'zoom', 'narration', 'narrationEnd', 'duration', 'voice', 'voiceMs', 'voiceText', 'highlight']) {
       if (st[k] !== undefined && st[k] !== null && st[k] !== '') o[k] = st[k];
     }
     o.t = st.t - t0;

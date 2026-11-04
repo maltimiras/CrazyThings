@@ -29,7 +29,7 @@
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, voice: true, timing: 'auto', zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, voice: true, highlight: 'auto', highlightColor: '#FA4616', timing: 'auto', zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
   function flag(name, key) {
@@ -46,6 +46,9 @@
   flag('zoom', 'zoom');
   flag('subs', 'subtitles');
   flag('voice', 'voice');
+  var hlParam = params.get('highlight');
+  if (hlParam) settings.highlight = /^(0|false|off)$/.test(hlParam) ? 'off' : hlParam === 'card' || hlParam === 'element' ? hlParam : 'auto';
+  if (/^#?[0-9a-f]{3,8}$/i.test(params.get('hlcolor') || '')) settings.highlightColor = '#' + params.get('hlcolor').replace('#', '');
   if (params.get('timing') === 'recorded' || params.get('timing') === 'auto') settings.timing = params.get('timing');
   flag('captions', 'captions');
   if (params.get('bg')) settings.background = params.get('bg');
@@ -292,6 +295,62 @@
     cursorEl.classList.add('down');
     setTimeout(function () { cursorEl.classList.remove('down'); }, 160);
   }
+
+  // Click highlight: a thick box around the element (or the card around it) being clicked or typed
+  // into, with the rest of the screen dimmed. It glides from one target to the next.
+  var hlEl = document.createElement('div');
+  hlEl.className = 'dp-hl';
+  hlEl.style.setProperty('--dp-hl-color', settings.highlightColor || '#FA4616');
+  overlay.appendChild(hlEl);
+  // step.highlight overrides the export setting: false (off), 'element' or 'card'.
+  function highlightMode(s) {
+    if (s.highlight === false) return 'off';
+    if (s.highlight === 'element' || s.highlight === 'card') return s.highlight;
+    if (s.highlight === true) return 'element';
+    var g = settings.highlight;
+    return g === 'card' || g === 'element' ? g : g === 'off' || g === false ? 'off' : 'auto';
+  }
+  // The block around an element that looks like a card: rounded, bordered, shadowed or with its own
+  // background; bigger than the element and smaller than 60% of the screen. Else the element itself.
+  function cardOf(el) {
+    var doc = el.ownerDocument, w = doc.defaultView;
+    var r0 = el.getBoundingClientRect(), max = w.innerWidth * w.innerHeight * 0.6;
+    var n = el;
+    for (var k = 0; k < 6; k++) {
+      n = n.parentElement || (n.getRootNode && n.getRootNode().host) || null;
+      if (!n || n === doc.body || n === doc.documentElement) break;
+      var r = n.getBoundingClientRect();
+      if (r.width * r.height > max) break;
+      if (r.width < r0.width + 8 && r.height < r0.height + 8) continue;
+      var cs = w.getComputedStyle(n);
+      var bg = cs.backgroundColor;
+      if (parseFloat(cs.borderTopLeftRadius) > 0 || cs.boxShadow !== 'none' || parseFloat(cs.borderTopWidth) > 0 ||
+          (bg && bg !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(bg))) return n;
+    }
+    return el;
+  }
+  function showHighlight(el, mode) {
+    if (!el || mode === 'off') { hideHighlight(); return; }
+    if (mode === 'auto') {
+      // Icons and small buttons read better with the card around them; everything else is boxed itself.
+      var r0 = el.getBoundingClientRect();
+      mode = r0.width < 48 && r0.height < 48 ? 'card' : 'element';
+    }
+    var t = mode === 'card' ? cardOf(el) : el;
+    var r = t.getBoundingClientRect();
+    var glide = hlEl.classList.contains('on');
+    var ms = Math.round(700 / settings.speed);
+    hlEl.style.transition = glide
+      ? ['left', 'top', 'width', 'height'].map(function (p) { return p + ' ' + ms + 'ms cubic-bezier(.6,.05,.25,1)'; }).join(',') + ',opacity .3s'
+      : 'opacity .3s';
+    hlEl.style.left = r.left + 'px';
+    hlEl.style.top = r.top + 'px';
+    hlEl.style.width = r.width + 'px';
+    hlEl.style.height = r.height + 'px';
+    hlEl.classList.add('on');
+    root.classList.add('dp-hl-on');
+  }
+  function hideHighlight() { hlEl.classList.remove('on'); root.classList.remove('dp-hl-on'); }
 
   var hotspot = null;
   function showHotspot(el) {
@@ -561,6 +620,8 @@
     var s = steps[i];
     var voiced = !!(hasVoice && s.voice && src.assets[s.voice]);
     if (voiced && settings.mode !== 'guided') { await waitVoice(); check(my); }
+    // The box follows clicks and typing (and key presses right after typing); other steps clear it.
+    if (!s.target || (s.type !== 'click' && s.type !== 'type' && !(s.type === 'key' && i > 0 && steps[i - 1].type === 'type'))) hideHighlight();
     hideCallout();
     hideKey();
     hideHotspot();
@@ -595,6 +656,7 @@
       case 'click': {
         if (el) {
           var p = targetPoint(el, s.x, s.y);
+          showHighlight(el, highlightMode(s));
           var zc = setZoom(zoomLevel(s), p.x, p.y, true);
           await Promise.all([moveCursor(p.x, p.y), zc ? sleep(750) : null]);
         } else {
@@ -616,6 +678,7 @@
       case 'type': {
         if (el) {
           var c = targetPoint(el, 0.5, 0.5);
+          showHighlight(el, highlightMode(s));
           var zt = setZoom(zoomLevel(s), c.x, c.y, true);
           var r = el.getBoundingClientRect();
           if (cursor.x < r.left || cursor.x > r.right || cursor.y < r.top || cursor.y > r.bottom) {
@@ -705,6 +768,7 @@
         idx = 0;
         play();
       } else {
+        hideHighlight();
         showCover('↻  Replay');
       }
     } catch (e) {
@@ -733,6 +797,7 @@
     hideCallout();
     hideKey();
     hideSubtitle();
+    hideHighlight();
     idx = clamp(i, 0, steps.length - 1);
     cover.hidden = true;
     updateUI();
@@ -830,6 +895,7 @@
   window.demoPlayer = {
     play: play, pause: pause, jump: jump,
     get index() { return idx; }, get playing() { return playing; }, steps: steps,
+    get highlight() { return hlEl.classList.contains('on') ? hlEl.getBoundingClientRect() : null; },
     get voice() { return voiceAudio ? { src: voiceAudio.src.slice(0, 40), paused: voiceAudio.paused, rate: voiceAudio.playbackRate } : null; },
   };
 })();

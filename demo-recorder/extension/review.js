@@ -109,6 +109,19 @@ async function renderEditor(id) {
         refreshPreview(id);
       };
       tr.querySelector('td.z').appendChild(sel);
+      // Per-step highlight box: '' = export setting, 'off' = no box, 'element' / 'card'.
+      const box = document.createElement('select');
+      box.title = 'Highlight box for this step';
+      box.innerHTML = '<option value="">Box: default</option><option value="off">Box: off</option>' +
+        '<option value="element">Box: element</option><option value="card">Box: card</option>';
+      box.value = st.highlight === false ? 'off' : st.highlight === 'element' || st.highlight === 'card' ? st.highlight : '';
+      box.onchange = async () => {
+        if (box.value === '') delete st.highlight;
+        else st.highlight = box.value === 'off' ? false : box.value;
+        await db.putStep(st);
+        refreshPreview(id);
+      };
+      tr.querySelector('td.z').appendChild(box);
     }
     tr.querySelector('.desc').textContent = describeStep(st);
     tr.querySelector('.desc').title = describeStep(st);
@@ -159,8 +172,8 @@ async function renderEditor(id) {
 
   // ---------- narration ----------
   await renderNarration(id, session);
+  renderVersions(id, session); // before the voice card, which waits for the voice list
   await renderVoice(id, session);
-  renderVersions(id, session);
 
 
   $('preview').onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('preview.html#' + id) });

@@ -26,6 +26,11 @@ body { background: #0f1117; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "S
 .dp-ripple { position: absolute; width: calc(44px / var(--dp-scale, 1)); height: calc(44px / var(--dp-scale, 1)); margin: calc(-22px / var(--dp-scale, 1)) 0 0 calc(-22px / var(--dp-scale, 1)); border-radius: 50%; background: rgba(99,102,241,.35); border: 2px solid rgba(99,102,241,.8); animation: dp-ripple .55s ease-out forwards; z-index: 4; }
 @keyframes dp-ripple { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.4); opacity: 0; } }
 
+.dp-hl { position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 3; border-radius: 10px; pointer-events: none; opacity: 0;
+  outline: calc(3px / var(--dp-scale, 1)) solid var(--dp-hl-color, #FA4616); outline-offset: calc(3px / var(--dp-scale, 1));
+  box-shadow: 0 0 0 9999px rgba(30,10,30,.3); }
+.dp-hl.on { opacity: 1; }
+.dp-hl-on .dp-hotspot { box-shadow: 0 0 0 3px rgba(99,102,241,.9); }
 .dp-hotspot { position: absolute; border-radius: 8px; box-shadow: 0 0 0 3px rgba(99,102,241,.9), 0 0 0 9999px rgba(15,17,23,.18); pointer-events: auto; cursor: pointer; animation: dp-pulse 1.4s infinite; z-index: 3; }
 @keyframes dp-pulse { 50% { box-shadow: 0 0 0 7px rgba(99,102,241,.45), 0 0 0 9999px rgba(15,17,23,.18); } }
 .dp-hotspot.hint { animation: dp-shake .4s; }

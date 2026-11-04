@@ -50,7 +50,8 @@
     td.z { width: 120px; }
     td.d { width: 74px; }
     td.d input { width: 66px; font-size: 12px; padding: 5px 6px; }
-    td.z select { font-size: 12px; padding: 5px 6px; width: 112px; }
+    td.z select { font-size: 12px; padding: 5px 6px; width: 112px; display: block; }
+    td.z select + select { margin-top: 4px; }
     td.x { width: 40px; text-align: right; }
     td.note textarea.nar { margin-top: 4px; background: #f5f3ff; }
     .vclip { font-size: 12px; color: var(--m); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
@@ -126,6 +127,9 @@
           <label class="chk"><input type="checkbox" data-setting="captions"> Captions</label>
           <label class="chk"><input type="checkbox" data-setting="subtitles"> Narration subtitles</label>
           <label class="chk" title="Play the ElevenLabs voice clips (🔊 Voice-over card) when the demo has them"><input type="checkbox" data-setting="voice"> Voice-over audio</label>
+          <label title="A thick box around the element (or the card around it) being clicked or typed into; the rest of the screen is dimmed. Override it per step below."><span>Click highlight</span>
+            <select data-setting="highlight"><option value="auto">Auto (card for small icons)</option><option value="element">Box the element</option><option value="card">Box the card around it</option><option value="off">Off</option></select></label>
+          <label><span>Highlight color</span><input type="color" data-setting="highlightColor" style="width:60px;height:30px;padding:2px"></label>
           <label class="chk" title="The view zooms in on each click and typing step. Turn it off for single steps in the list below."><input type="checkbox" data-setting="zoom"> Auto-zoom on clicks &amp; typing</label>
           <label><span>Zoom level</span>
             <select data-setting="zoomLevel"><option value="1.5">1.5×</option><option value="1.8">1.8×</option><option value="2.2">2.2×</option></select></label>
