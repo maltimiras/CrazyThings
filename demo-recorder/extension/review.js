@@ -240,9 +240,10 @@ async function renderNarration(id, session) {
   const { elKey } = await chrome.storage.local.get('elKey');
   $('transcribe').disabled = !elKey || !blob;
   $('transcribe').title = elKey ? 'Send the audio to ElevenLabs speech-to-text' : 'Add your ElevenLabs API key in ⚙ Settings';
+  $('narr-key').className = elKey ? 'muted' : 'warn';
   $('narr-key').innerHTML = elKey
     ? 'ElevenLabs key: ✓ set (shared by all recordings · <a href="#settings">⚙ Settings</a>)'
-    : 'ElevenLabs key: not set · <a href="#settings">add it in ⚙ Settings</a> to transcribe';
+    : '⚠ No ElevenLabs API key: transcription won\'t work. <a href="#settings">Add it in ⚙ Settings</a>.';
   $('use-live').hidden = !live.length;
   $('use-live').onclick = () => applyPhrases(id, livePhrases(audio, live), 'chrome');
   $('transcribe').onclick = () => transcribe(id, blob);
@@ -363,7 +364,8 @@ async function renderVoice(id, session) {
   };
   if (!prefs.elKey) {
     sel.hidden = true; $('vo-reload').hidden = true; $('vo-gen').disabled = true;
-    status.innerHTML = 'Add your ElevenLabs API key in <a href="#settings">⚙ Settings</a> to generate the voice from the narration text.';
+    status.className = 'warn';
+    status.innerHTML = '⚠ No ElevenLabs API key: the voice-over can\'t be generated. <a href="#settings">Add it in ⚙ Settings</a>.';
     return;
   }
   $('vo-reload').onclick = () => load(true);
@@ -457,6 +459,17 @@ function renderVersions(id, session) {
   $('lv-screens').onchange = () => chrome.storage.local.set({ lvScreens: $('lv-screens').checked });
   $('lv-voice').onchange = () => chrome.storage.local.set({ lvVoice: $('lv-voice').checked });
   $('lv-go').onclick = () => createVersion(id, sel.value, { screens: $('lv-screens').checked, voice: $('lv-voice').checked });
+  // Say up front what can't work without the API keys.
+  chrome.storage.local.get(['anKey', 'elKey']).then(({ anKey, elKey }) => {
+    const warn = [];
+    if (!anKey) warn.push('⚠ Translation needs an Anthropic API key: <a href="#settings">add it in ⚙ Settings</a>.');
+    if (!elKey) warn.push('⚠ No ElevenLabs API key: the version won\'t be voiced.');
+    $('lv-warn').innerHTML = warn.join(' ');
+    $('lv-warn').hidden = !warn.length;
+    $('lv-go').disabled = !anKey;
+    $('lv-go').title = anKey ? '' : 'Add an Anthropic API key in ⚙ Settings';
+    if (!elKey) { $('lv-voice').checked = false; $('lv-voice').disabled = true; }
+  });
 }
 
 async function storeImported({ session, screens, steps, css }) {
@@ -572,6 +585,12 @@ async function renderSettings() {
       if (key === 'anKey') { $('an-result').className = 'muted'; $('an-result').textContent = el.value.trim() ? 'Saved.' : 'Removed.'; }
     };
   }
+  const showMissing = () => {
+    $('el-missing').hidden = !!main.querySelector('[data-pref=elKey]').value.trim();
+    $('an-missing').hidden = !!main.querySelector('[data-pref=anKey]').value.trim();
+  };
+  showMissing();
+  for (const k of ['elKey', 'anKey']) main.querySelector(`[data-pref=${k}]`).addEventListener('input', showMissing);
   const keyInput = main.querySelector('[data-pref=elKey]');
   $('key-show').onclick = () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; };
   $('key-test').onclick = () => testKey(keyInput.value.trim());
@@ -646,6 +665,7 @@ async function testKey(key) {
 
 function route() {
   const h = location.hash.slice(1);
+  $('top-settings').classList.toggle('on', h === 'settings');
   if (h === 'settings') return renderSettings();
   if (h === 'import') {
     // Opened from the popup's "Import demo…": open the file picker (may need a click if the browser blocks it).

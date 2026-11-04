@@ -14,9 +14,18 @@
     aside.drop { outline: 3px dashed var(--p); outline-offset: -6px; background: #eef2ff; }
     #import-msg { font-size: 12px; }
     .setlink { font-size: 13px; color: var(--p); text-decoration: none; }
-    .keyrow { display: inline-flex; gap: 4px; }
-    .keyrow input { width: 160px !important; flex: none !important; }
-    .keyrow button { padding: 4px 8px; }
+    /* Settings view: roomy grid, rows that stretch instead of fixed widths (nothing spills over). */
+    .setgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 12px; margin-top: 14px; }
+    .setgrid label { display: flex; gap: 10px; align-items: center; justify-content: flex-start; }
+    .setgrid label > span:first-child { flex: none; width: 104px; }
+    .setgrid fieldset label > input, .setgrid fieldset label > select { flex: 1 1 auto; min-width: 0; width: auto; }
+    .keyrow { display: flex; flex: 1 1 auto; min-width: 0; gap: 4px; }
+    .keyrow input, .keyrow select, .setgrid fieldset .keyrow input, .setgrid fieldset .keyrow select { flex: 1 1 auto; min-width: 0; width: auto !important; }
+    .keyrow button { flex: none; padding: 4px 8px; }
+    .warn { color: #b45309; font-size: 13px; }
+    .warn a { color: inherit; font-weight: 600; }
+    #top-settings { position: fixed; top: 12px; right: 18px; z-index: 10; font-size: 14px; padding: 7px 12px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: inherit; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+    #top-settings.on { background: #eef2ff; border-color: var(--p); color: var(--p); }
     #key-result.ok { color: #047857; }
     #key-result.bad { color: #b91c1c; }
     #import-msg.bad { color: #b91c1c; }
@@ -29,7 +38,7 @@
     main { overflow: auto; padding: 24px 32px; }
     .empty { color: var(--m); padding: 60px; text-align: center; }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    input[type=text], select, textarea { font: inherit; border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 10px; background: #fff; }
+    input[type=text], input[type=password], select, textarea { font: inherit; border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 10px; background: #fff; }
     #title { font-size: 20px; font-weight: 600; width: 100%; max-width: 640px; border-color: transparent; padding-left: 4px; }
     #title:hover, #title:focus { border-color: #d1d5db; }
     button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
@@ -87,10 +96,10 @@
       <input type="file" id="import-file" accept=".html,.htm,text/html" hidden>
       <div class="muted">or drop a .demo.html file here</div>
       <div id="import-msg"></div>
-      <a class="setlink" href="#settings">⚙ Settings (API keys &amp; voice)</a>
     </div>
     <div id="sessions"></div>
   </aside>
+  <a id="top-settings" href="#settings" title="API keys (ElevenLabs, Anthropic), voice and languages">⚙ Settings</a>
   <main id="main">
     <div class="empty">Select a recording, or start one from the toolbar button.</div>
   </main>
@@ -178,6 +187,7 @@
         <label class="row" style="gap:4px"><input type="checkbox" id="lv-voice" checked> Generate the voice</label>
         <button id="lv-go" class="primary">Create version</button>
       </div>
+      <div class="warn" id="lv-warn" hidden></div>
       <div class="muted" id="lv-status"></div>
     </div>
     <div class="card">
@@ -188,31 +198,33 @@
   <template id="settings-view">
     <h2 style="margin:4px 0 4px">⚙ Settings</h2>
     <div class="muted">Set once, used by every recording (including imported ones). Stored only in this browser's extension storage.</div>
-    <div class="opts">
+    <div class="setgrid">
       <fieldset>
-        <legend>ElevenLabs (transcription &amp; voice)</legend>
+        <legend>ElevenLabs key</legend>
         <label><span>API key</span><span class="keyrow"><input type="password" data-pref="elKey" autocomplete="off" placeholder="sk_…"><button type="button" id="key-show" title="Show / hide">👁</button></span></label>
         <label><span>Model</span><input type="text" data-pref="elModel" placeholder="scribe_v2"></label>
         <label><span>Language</span>
           <select data-pref="elLang"><option value="">Same as recording / detect</option><option value="en">English</option><option value="es">Spanish</option><option value="ca">Catalan</option><option value="fr">French</option><option value="de">German</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="nl">Dutch</option></select></label>
+        <div class="warn" id="el-missing" hidden>⚠ Not set: transcription with ElevenLabs and the generated voice-over won't work.</div>
         <div class="row"><button type="button" id="key-test">Test key</button><span id="key-result" class="muted"></span></div>
         <div class="muted">Permissions the key needs (ElevenLabs → Developers → API keys): <b>Speech to Text</b> to transcribe, <b>Text to Speech</b> and <b>Voices (read)</b> to generate the voice-over. Audio and text are sent to ElevenLabs only when you click Transcribe or Generate voice.</div>
       </fieldset>
       <fieldset>
-        <legend>Voice-over (ElevenLabs text-to-speech)</legend>
-        <label><span>Default voice</span><span class="keyrow"><select id="voice-pick" style="width:170px"></select><button type="button" id="voice-load" title="Load the voices from ElevenLabs">↻</button><button type="button" id="voice-play" title="Listen">▶</button></span></label>
+        <legend>Voice-over</legend>
+        <label><span>Default voice</span><span class="keyrow"><select id="voice-pick"></select><button type="button" id="voice-load" title="Load the voices from ElevenLabs">↻</button><button type="button" id="voice-play" title="Listen">▶</button></span></label>
         <label><span>Model</span><input type="text" data-pref="elTtsModel" placeholder="eleven_multilingual_v2"></label>
         <div class="muted" id="voice-result">Each recording can use another voice (🔊 Voice-over card). <code>eleven_multilingual_v2</code> speaks 29 languages; <code>eleven_flash_v2_5</code> is faster and cheaper.</div>
       </fieldset>
       <fieldset>
         <legend>Claude (translation)</legend>
-        <label><span>Anthropic API key</span><span class="keyrow"><input type="password" data-pref="anKey" autocomplete="off" placeholder="sk-ant-…"><button type="button" id="an-show" title="Show / hide">👁</button></span></label>
+        <label><span>API key</span><span class="keyrow"><input type="password" data-pref="anKey" autocomplete="off" placeholder="sk-ant-…"><button type="button" id="an-show" title="Show / hide">👁</button></span></label>
         <label><span>Model</span><input type="text" data-pref="anModel" placeholder="claude-opus-5-5"></label>
+        <div class="warn" id="an-missing" hidden>⚠ Not set: translation (Create version) won't work.</div>
         <div class="row"><button type="button" id="an-test">Test key</button><span id="an-result" class="muted"></span></div>
         <div class="muted">Used by <b>Create version</b> to translate the screens, captions and narration. Get a key at console.anthropic.com. Text is sent to Anthropic only when you create a version.</div>
       </fieldset>
       <fieldset>
-        <legend>Live transcript (Google Chrome)</legend>
+        <legend>Live transcript</legend>
         <label><span>Language</span>
           <select data-pref="narrationLang"></select></label>
         <div class="muted">Free, runs in the small Narration window while you record (Google Chrome only; Chrome sends the audio to Google). Also set in the popup, with a microphone test.</div>
