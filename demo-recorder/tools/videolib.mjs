@@ -1,5 +1,5 @@
 // Pure helpers for tools/video.mjs (video demo → HTML demo). No ffmpeg or fs here: unit-testable.
-import { wordsToPhrases, assignPhrases } from '../extension/lib/narration.js';
+import { wordsToPhrases, assignPhrases, assignPhraseEnds } from '../extension/lib/narration.js';
 
 // Times (s) of the frames ffmpeg's showinfo filter printed ("... pts_time:12.345 ...").
 export function parseShowinfo(stderr) {
@@ -83,8 +83,13 @@ export function buildScaffold({ title, video, words = [], frameAssets }) {
   }));
   // The video's own clock is the audio timeline: step t (ms) ↔ audio seconds.
   const audio = { segments: [{ wall: 0, at: 0 }] };
-  const texts = assignPhrases(steps, audio, wordsToPhrases(words));
-  steps.forEach((s, i) => { if (texts[i]) s.narration = texts[i]; });
+  const phrases = wordsToPhrases(words);
+  const texts = assignPhrases(steps, audio, phrases);
+  const ends = assignPhraseEnds(steps, audio, phrases);
+  steps.forEach((s, i) => {
+    if (texts[i]) s.narration = texts[i];
+    if (texts[i] && ends[i] != null) s.narrationEnd = Math.round(ends[i] * 1000); // when the sentence ends (video ms)
+  });
 
   const screens = {};
   const screenMeta = {};
@@ -100,7 +105,7 @@ export function buildScaffold({ title, video, words = [], frameAssets }) {
     title: title || 'Video demo',
     createdAt: new Date().toISOString(),
     viewport: video.viewport,
-    settings: { mode: 'autoplay', subtitles: true, zoom: false },
+    settings: { mode: 'autoplay', subtitles: true, zoom: false, timing: 'recorded' },
     source: { video: video.source, duration: video.duration },
     screens: screenMeta,
     steps,

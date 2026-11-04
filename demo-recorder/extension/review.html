@@ -13,6 +13,12 @@
     .import button { width: 100%; }
     aside.drop { outline: 3px dashed var(--p); outline-offset: -6px; background: #eef2ff; }
     #import-msg { font-size: 12px; }
+    .setlink { font-size: 13px; color: var(--p); text-decoration: none; }
+    .keyrow { display: inline-flex; gap: 4px; }
+    .keyrow input { width: 160px !important; flex: none !important; }
+    .keyrow button { padding: 4px 8px; }
+    #key-result.ok { color: #047857; }
+    #key-result.bad { color: #b91c1c; }
     #import-msg.bad { color: #b91c1c; }
     #import-msg.warn { color: #b45309; }
     .sess { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
@@ -42,9 +48,19 @@
     .desc { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     td.note textarea { width: 100%; min-width: 220px; height: 34px; resize: vertical; font-size: 13px; }
     td.z { width: 120px; }
-    td.z select { font-size: 12px; padding: 5px 6px; width: 112px; }
+    td.d { width: 74px; }
+    td.d input { width: 66px; font-size: 12px; padding: 5px 6px; }
+    td.z select { font-size: 12px; padding: 5px 6px; width: 112px; display: block; }
+    td.z select + select { margin-top: 4px; }
     td.x { width: 40px; text-align: right; }
     td.note textarea.nar { margin-top: 4px; background: #f5f3ff; }
+    .vclip { font-size: 12px; color: var(--m); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+    .vclip button { padding: 1px 7px; font-size: 12px; }
+    .vclip.stale { color: #b45309; }
+    #vo select, #lv select { max-width: 260px; }
+    #vo-status.bad, #lv-status.bad { color: #b91c1c; }
+    #vo-status.ok, #lv-status.ok { color: #047857; }
+    .ok { color: #047857; }
     #narr .row, #narr audio { margin-bottom: 8px; }
     #narr audio { width: 100%; }
     a.btnlink { font-size: 14px; padding: 8px 14px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: inherit; text-decoration: none; }
@@ -71,6 +87,7 @@
       <input type="file" id="import-file" accept=".html,.htm,text/html" hidden>
       <div class="muted">or drop a .demo.html file here</div>
       <div id="import-msg"></div>
+      <a class="setlink" href="#settings">⚙ Settings (API keys &amp; voice)</a>
     </div>
     <div id="sessions"></div>
   </aside>
@@ -97,6 +114,8 @@
             <select data-setting="autoStart"><option value="false">Wait for Play</option><option value="true">Start automatically</option></select></label>
           <label><span>Speed</span>
             <select data-setting="speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></label>
+          <label title="Natural: each step paced by its animations. As recorded: each step lasts as long as in the original recording or video (keeps the voice-over in sync)."><span>Pace</span>
+            <select data-setting="timing"><option value="auto">Natural</option><option value="recorded">As recorded</option></select></label>
           <label class="chk"><input type="checkbox" data-setting="loop"> Loop when finished</label>
         </fieldset>
         <fieldset>
@@ -107,6 +126,10 @@
           <label class="chk" title="Overlay like “Alt + K” when a key or shortcut was pressed"><input type="checkbox" data-setting="showKeys"> Key presses (e.g. Alt + K)</label>
           <label class="chk"><input type="checkbox" data-setting="captions"> Captions</label>
           <label class="chk"><input type="checkbox" data-setting="subtitles"> Narration subtitles</label>
+          <label class="chk" title="Play the ElevenLabs voice clips (🔊 Voice-over card) when the demo has them"><input type="checkbox" data-setting="voice"> Voice-over audio</label>
+          <label title="A thick box around the element (or the card around it) being clicked or typed into; the rest of the screen is dimmed. Override it per step below."><span>Click highlight</span>
+            <select data-setting="highlight"><option value="auto">Auto (card for small icons)</option><option value="element">Box the element</option><option value="card">Box the card around it</option><option value="off">Off</option></select></label>
+          <label><span>Highlight color</span><input type="color" data-setting="highlightColor" style="width:60px;height:30px;padding:2px"></label>
           <label class="chk" title="The view zooms in on each click and typing step. Turn it off for single steps in the list below."><input type="checkbox" data-setting="zoom"> Auto-zoom on clicks &amp; typing</label>
           <label><span>Zoom level</span>
             <select data-setting="zoomLevel"><option value="1.5">1.5×</option><option value="1.8">1.8×</option><option value="2.2">2.2×</option></select></label>
@@ -129,32 +152,72 @@
         <button id="transcribe">Transcribe with ElevenLabs</button>
         <a id="narr-dl" class="btnlink">⬇ Download audio</a>
       </div>
+      <div class="muted" id="narr-key" style="margin-bottom:8px"></div>
       <audio id="narr-audio" controls preload="metadata"></audio>
       <div class="muted" id="narr-status"></div>
     </div>
+    <div class="card" id="vo">
+      <div class="row">
+        <b>🔊 Voice-over</b>
+        <span class="muted" id="vo-info"></span>
+        <span style="flex:1"></span>
+        <select id="vo-voice" title="ElevenLabs voice"></select>
+        <button id="vo-reload" title="Reload the voices from ElevenLabs">↻</button>
+        <button id="vo-gen">Generate voice</button>
+        <button id="vo-clear" title="Remove the voice clips (the narration text stays)">Remove voice</button>
+      </div>
+      <div class="muted" id="vo-status"></div>
+    </div>
+    <div class="card" id="lv">
+      <div class="row">
+        <b>🌐 Language version</b>
+        <span class="muted">a translated copy of this demo, as a new recording</span>
+        <span style="flex:1"></span>
+        <select id="lv-lang" title="Language of the new version"></select>
+        <label class="row" style="gap:4px"><input type="checkbox" id="lv-screens" checked> Translate the screens</label>
+        <label class="row" style="gap:4px"><input type="checkbox" id="lv-voice" checked> Generate the voice</label>
+        <button id="lv-go" class="primary">Create version</button>
+      </div>
+      <div class="muted" id="lv-status"></div>
+    </div>
     <div class="card">
-      <div class="muted" style="margin-bottom:8px">Steps — delete noise, add captions (shown as callouts) and narration (the spoken text, shown as subtitles; later voiced with ElevenLabs).</div>
+      <div class="muted" style="margin-bottom:8px">Steps — delete noise, add captions (shown as callouts) and narration (the spoken text: shown as subtitles and voiced with ElevenLabs).</div>
       <table><tbody id="steps"></tbody></table>
     </div>
-    <details class="card" id="settings">
-      <summary><b>Settings</b> <span class="muted">— transcription</span></summary>
-      <div class="opts">
-        <fieldset>
-          <legend>ElevenLabs speech-to-text</legend>
-          <label><span>API key</span><input type="password" data-pref="elKey" autocomplete="off" placeholder="xi-…"></label>
-          <label><span>Model</span><input type="text" data-pref="elModel" placeholder="scribe_v2"></label>
-          <label><span>Language</span>
-            <select data-pref="elLang"><option value="">Same as recording / detect</option><option value="en">English</option><option value="es">Spanish</option><option value="ca">Catalan</option><option value="fr">French</option><option value="de">German</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="nl">Dutch</option></select></label>
-          <div class="muted">Stored only in this browser's extension storage. Audio is sent to ElevenLabs when you click Transcribe.</div>
-        </fieldset>
-        <fieldset>
-          <legend>Live transcript (Google Chrome)</legend>
-          <label><span>Language</span>
-            <select data-pref="narrationLang"></select></label>
-          <div class="muted">Free, runs in the small Narration window while you record (Google Chrome only; Chrome sends the audio to Google). Also set in the popup, with a microphone test.</div>
-        </fieldset>
-      </div>
-    </details>
+  </template>
+  <template id="settings-view">
+    <h2 style="margin:4px 0 4px">⚙ Settings</h2>
+    <div class="muted">Set once, used by every recording (including imported ones). Stored only in this browser's extension storage.</div>
+    <div class="opts">
+      <fieldset>
+        <legend>ElevenLabs (transcription &amp; voice)</legend>
+        <label><span>API key</span><span class="keyrow"><input type="password" data-pref="elKey" autocomplete="off" placeholder="sk_…"><button type="button" id="key-show" title="Show / hide">👁</button></span></label>
+        <label><span>Model</span><input type="text" data-pref="elModel" placeholder="scribe_v2"></label>
+        <label><span>Language</span>
+          <select data-pref="elLang"><option value="">Same as recording / detect</option><option value="en">English</option><option value="es">Spanish</option><option value="ca">Catalan</option><option value="fr">French</option><option value="de">German</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="nl">Dutch</option></select></label>
+        <div class="row"><button type="button" id="key-test">Test key</button><span id="key-result" class="muted"></span></div>
+        <div class="muted">Permissions the key needs (ElevenLabs → Developers → API keys): <b>Speech to Text</b> to transcribe, <b>Text to Speech</b> and <b>Voices (read)</b> to generate the voice-over. Audio and text are sent to ElevenLabs only when you click Transcribe or Generate voice.</div>
+      </fieldset>
+      <fieldset>
+        <legend>Voice-over (ElevenLabs text-to-speech)</legend>
+        <label><span>Default voice</span><span class="keyrow"><select id="voice-pick" style="width:170px"></select><button type="button" id="voice-load" title="Load the voices from ElevenLabs">↻</button><button type="button" id="voice-play" title="Listen">▶</button></span></label>
+        <label><span>Model</span><input type="text" data-pref="elTtsModel" placeholder="eleven_multilingual_v2"></label>
+        <div class="muted" id="voice-result">Each recording can use another voice (🔊 Voice-over card). <code>eleven_multilingual_v2</code> speaks 29 languages; <code>eleven_flash_v2_5</code> is faster and cheaper.</div>
+      </fieldset>
+      <fieldset>
+        <legend>Claude (translation)</legend>
+        <label><span>Anthropic API key</span><span class="keyrow"><input type="password" data-pref="anKey" autocomplete="off" placeholder="sk-ant-…"><button type="button" id="an-show" title="Show / hide">👁</button></span></label>
+        <label><span>Model</span><input type="text" data-pref="anModel" placeholder="claude-opus-5-5"></label>
+        <div class="row"><button type="button" id="an-test">Test key</button><span id="an-result" class="muted"></span></div>
+        <div class="muted">Used by <b>Create version</b> to translate the screens, captions and narration. Get a key at console.anthropic.com. Text is sent to Anthropic only when you create a version.</div>
+      </fieldset>
+      <fieldset>
+        <legend>Live transcript (Google Chrome)</legend>
+        <label><span>Language</span>
+          <select data-pref="narrationLang"></select></label>
+        <div class="muted">Free, runs in the small Narration window while you record (Google Chrome only; Chrome sends the audio to Google). Also set in the popup, with a microphone test.</div>
+      </fieldset>
+    </div>
   </template>
   <script src="review.js" type="module"></script>
 </body>

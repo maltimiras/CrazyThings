@@ -34,6 +34,20 @@ export function assignPhrases(steps, audio, phrases) {
   return out.map((parts) => parts.join(' ').replace(/\s+/g, ' ').trim());
 }
 
+// When (s, on the same timeline) the narration assigned to each step stops being spoken:
+// the end of the last phrase placed on it, or null.
+export function assignPhraseEnds(steps, audio, phrases) {
+  const starts = stepStarts(steps, audio);
+  const out = steps.map(() => null);
+  for (const p of phrases) {
+    if (!(p.text || '').trim() || p.end == null) continue;
+    let k = 0;
+    for (let i = 0; i < starts.length; i++) if (starts[i] <= p.start + 0.05) k = i;
+    out[k] = Math.max(out[k] || 0, p.end);
+  }
+  return out;
+}
+
 // Live Chrome transcript entries [{ wall, text }] → phrases.
 export function livePhrases(audio, live) {
   return (live || []).map((p) => ({ start: wallToAudio(audio, p.wall), text: p.text }));
@@ -51,10 +65,11 @@ export function wordsToPhrases(words, gap = 0.7) {
     if (!text) continue;
     const brk = !cur || (prev && (/[.?!…]$/.test(prev.text.trim()) || (w.start - prev.end) > gap));
     if (brk) {
-      cur = { start: w.start, text };
+      cur = { start: w.start, end: w.end != null ? w.end : w.start, text };
       phrases.push(cur);
     } else {
       cur.text += /^[,.;:!?…)]/.test(text) ? text : ' ' + text;
+      if (w.end != null) cur.end = w.end;
     }
     prev = w;
   }

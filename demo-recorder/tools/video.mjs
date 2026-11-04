@@ -20,7 +20,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseShowinfo, selectFrames, guessViewport, frameName, buildScaffold, resolveScreen, parseEnv } from './videolib.mjs';
 import { parseDemo, assembleDemo } from '../extension/lib/format.js';
-import { wordsToPhrases, assignPhrases } from '../extension/lib/narration.js';
+import { wordsToPhrases, assignPhrases, assignPhraseEnds } from '../extension/lib/narration.js';
 
 const PLAYER_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'extension', 'player');
 
@@ -209,12 +209,23 @@ async function cmdNarrate(target, video, opts) {
     writeJson(tOut, { text: json.text || '', language_code: json.language_code || opts.lang || '', words });
     console.log(`Transcript saved → ${tOut}`);
   }
-  const texts = assignPhrases(manifest.steps, { segments: [{ wall: 0, at: 0 }] }, wordsToPhrases(words));
+  const tl = { segments: [{ wall: 0, at: 0 }] };
+  const phrases = wordsToPhrases(words);
+  const texts = assignPhrases(manifest.steps, tl, phrases);
+  const ends = assignPhraseEnds(manifest.steps, tl, phrases);
   let n = 0;
   manifest.steps.forEach((s, i) => {
-    if (texts[i] && (opts.force || !s.narration)) { s.narration = texts[i]; n++; }
+    if (texts[i] && (opts.force || !s.narration)) {
+      s.narration = texts[i];
+      if (ends[i] != null) s.narrationEnd = Math.round(ends[i] * 1000); else delete s.narrationEnd;
+      n++;
+    } else if (opts.force && !texts[i]) {
+      delete s.narration; delete s.narrationEnd;
+    }
   });
-  manifest.settings = { ...(manifest.settings || {}), subtitles: manifest.settings && manifest.settings.subtitles === false ? false : true };
+  const st = manifest.settings || {};
+  // Video voice-overs play in sync only when each step keeps its recorded length.
+  manifest.settings = { ...st, subtitles: st.subtitles === false ? false : true, timing: st.timing || 'recorded' };
   if (isHtml) {
     const out = opts.out || target;
     fs.writeFileSync(out, assembleDemo({

@@ -35,6 +35,8 @@ test('buildScaffold makes one step per frame with narration from the transcript'
   const { manifest, screens, notes } = buildScaffold({ title: 'Demo', video, words, frameAssets: ['a1', 'a2', 'a3'] });
   assert.deepEqual(manifest.steps.map((s) => [s.type, s.screen, s.t]), [['start', 's1', 0], ['change', 's2', 4400], ['end', 's3', 11950]]);
   assert.deepEqual(manifest.steps.map((s) => s.narration || ''), ['Hola equipo.', 'Abrimos el formulario.', '']);
+  assert.deepEqual(manifest.steps.map((s) => s.narrationEnd), [1200, 5600, undefined]);
+  assert.equal(manifest.settings.timing, 'recorded');
   assert.equal(manifest.screens.s2.frame, 'f002.png');
   assert.ok(screens.s1.includes('demo-asset:a1') && screens.s1.includes('data-demo-css="app"') && screens.s1.includes('data-demo-placeholder'));
   assert.match(notes, /\| 2 \| change \| 4\.4 s \| s2 \|/);

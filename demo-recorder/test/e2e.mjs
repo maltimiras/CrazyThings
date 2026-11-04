@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { parseDemo } from '../extension/lib/format.js';
+import { parseDemo, assembleDemo } from '../extension/lib/format.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -458,6 +458,321 @@ try {
   await imp.waitForFunction(() => document.getElementById('import-msg').className === 'bad', null, { timeout: 5000 });
   assert(/isn't a Demo Recorder export/.test(await imp.textContent('#import-msg')), 'a non-demo file is rejected with a clear message');
   assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- timing: "As recorded" pace + a per-step duration set on the review page; preview auto-refresh
+  const pv = await ctx.newPage();
+  pv.on('pageerror', (e) => errors.push('preview: ' + e.message));
+  await pv.goto(`chrome-extension://${extId}/preview.html#${sessionId}`);
+  await pv.waitForFunction(() => window.demoPlayer);
+  await pv.evaluate(() => { window.__before = 1; });
+  const rt = await ctx.newPage();
+  await rt.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
+  await rt.waitForSelector('#steps td.d input');
+  await rt.selectOption('[data-setting=timing]', 'recorded');
+  // The page re-renders after the change: wait for the new rows (placeholder shows the recorded length).
+  await rt.waitForFunction(() => { const el = document.querySelector('#steps tr:nth-child(2) td.d input'); return el && el.placeholder !== '⏱ auto'; });
+  const ph = await rt.$eval('#steps tr:nth-child(2) td.d input', (el) => el.placeholder);
+  await rt.fill('#steps tr:nth-child(2) td.d input', '4');
+  await rt.press('#steps tr:nth-child(2) td.d input', 'Tab');
+  await pv.waitForFunction(() => window.__before === undefined && window.demoPlayer, null, { timeout: 8000 });
+  assert(/⏱ \d+\.\d/.test(ph), `the review page shows each step's recorded length (${ph}) and the preview reloads after an edit`);
+  const tm = await rt.evaluate(async (id) => {
+    const { buildDemoData } = await import('./lib/build.js');
+    const d = await buildDemoData(id);
+    return { timing: d.manifest.settings.timing, dur: d.manifest.steps[1].duration };
+  }, sessionId);
+  assert(tm.timing === 'recorded' && tm.dur === 4000, 'Pace and step duration are saved into the export ' + JSON.stringify(tm));
+  await pv.close();
+  await rt.close();
+
+  // A sentence spoken over several steps stays as a subtitle until it ends; steps keep their recorded length.
+  const base = parseDemo(fs.readFileSync(file, 'utf8'));
+  const sid = base.manifest.steps[0].screen;
+  const tman = { ...base.manifest, settings: { ...base.manifest.settings, timing: 'recorded', subtitles: true, autoStart: false, zoom: false },
+    steps: [
+      { id: 1, type: 'start', screen: sid, t: 0 },
+      { id: 2, type: 'change', screen: sid, t: 3000, narration: 'A sentence that is spoken over two steps.', narrationEnd: 8000 },
+      { id: 3, type: 'change', screen: sid, t: 3500 },
+      { id: 4, type: 'end', screen: sid, t: 9000 },
+    ] };
+  const tfile = path.join(OUT, 'timing.demo.html');
+  fs.writeFileSync(tfile, assembleDemo({ ...base, manifest: tman, playerJs: fs.readFileSync(path.join(EXT, 'player', 'player.js'), 'utf8'), playerCss: fs.readFileSync(path.join(EXT, 'player', 'player.css'), 'utf8') }));
+  const tp = await ctx.newPage();
+  tp.on('pageerror', (e) => errors.push('timing: ' + e.message));
+  await tp.goto('file://' + tfile + '?speed=4');
+  await tp.bringToFront();
+  await tp.waitForFunction(() => window.demoPlayer);
+  const tr = await tp.evaluate(() => new Promise((res) => {
+    const sub = () => document.querySelector('.dp-hud').classList.contains('has-sub');
+    const at = {}; const subAt = {}; let subOff = null; const t0 = performance.now();
+    window.demoPlayer.play();
+    (function tick() {
+      const i = window.demoPlayer.index, now = performance.now() - t0;
+      if (at[i] == null) { at[i] = now; subAt[i] = sub(); }
+      if (i === 2 && !sub() && subOff == null) subOff = now;
+      if (i >= 3 || now > 8000) return res({ at, subAt, subOff, pace: document.querySelector('[data-a=pace]').value });
+      requestAnimationFrame(tick);
+    })();
+  }));
+  const step3 = tr.at[3] - tr.at[2];
+  assert(Math.abs(step3 - 1375) < 300, `"As recorded" keeps a step's original length (${Math.round(step3)} ms at 4×, expected ≈1375)`);
+  assert(tr.subAt[2] === true && tr.subOff != null && tr.subOff < tr.at[3], 'the subtitle carries over to the next step and hides when the sentence ends');
+  assert(tr.pace === 'recorded', 'the player\'s Pace selector reflects the export setting');
+  await tp.close();
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- global Settings: the ElevenLabs key is set once and used by every recording
+  const st = await ctx.newPage();
+  st.on('pageerror', (e) => errors.push('settings: ' + e.message));
+  await st.goto(`chrome-extension://${extId}/review.html#settings`);
+  await st.waitForSelector('[data-pref=elKey]');
+  await st.fill('[data-pref=elKey]', 'sk_global_test');
+  await st.press('[data-pref=elKey]', 'Tab');
+  await st.waitForFunction(() => /Saved/.test(document.getElementById('key-result').textContent));
+  const savedKey = await st.evaluate(() => chrome.storage.local.get('elKey').then((r) => r.elKey));
+  assert(savedKey === 'sk_global_test', 'the Settings page saves the ElevenLabs key once');
+  // Test key: stub ElevenLabs (missing permission, then OK)
+  await st.evaluate(() => {
+    let n = 0;
+    window.fetch = async () => (n++ === 0
+      ? new Response('{"detail":{"status":"missing_permissions","message":"missing the permission speech_to_text"}}', { status: 401 })
+      : new Response('{"detail":"invalid audio"}', { status: 400 }));
+  });
+  await st.click('#key-test');
+  await st.waitForFunction(() => /not allowed to use Speech to Text/.test(document.getElementById('key-result').textContent));
+  await st.click('#key-test');
+  await st.waitForFunction(() => /✓ The key works/.test(document.getElementById('key-result').textContent));
+  assert(true, 'Test key explains a missing Speech-to-Text permission and confirms a working key');
+  await st.screenshot({ path: path.join(OUT, 'settings.png') });
+  for (const sidN of [narSession, sessionId]) {
+    await st.goto(`chrome-extension://${extId}/review.html#${sidN}`);
+    await st.waitForSelector('#steps tr');
+  }
+  const perRec = await st.evaluate(() => ({ card: !!document.querySelector('details#settings'), sidebar: !!document.querySelector('.setlink') }));
+  await st.goto(`chrome-extension://${extId}/review.html#${narSession}`);
+  await st.waitForSelector('#narr:not([hidden])');
+  await st.waitForFunction(() => /✓ set/.test(document.getElementById('narr-key').textContent));
+  assert(!perRec.card && perRec.sidebar, 'recordings no longer have their own Settings card; the Narration card shows the shared key is set');
+  await st.close();
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+  // ---- click highlight: an orange box around the clicked element (or the card around it), rest dimmed
+  const hlMeasure = async (q, label) => {
+    const hp = await ctx.newPage();
+    hp.on('pageerror', (e) => errors.push('highlight: ' + e.message));
+    await hp.goto('file://' + file + q);
+    await hp.waitForFunction(() => window.demoPlayer);
+    const res = await hp.evaluate((label) => new Promise((done) => {
+      const P = window.demoPlayer;
+      const i = label ? P.steps.findIndex((s) => s.type === 'click' && s.label === label)
+        : P.steps.findIndex((s) => s.type === 'click' && s.target && P.steps[P.steps.indexOf(s) + 1] && P.steps[P.steps.indexOf(s) + 1].type === 'change');
+      P.jump(i, true);
+      const t0 = performance.now();
+      let box = null, rect = null, hidden = null, color = '';
+      (function tick() {
+        if (!box && P.index === i && P.highlight) {
+          setTimeout(() => {
+            box = P.highlight;
+            const frame = document.querySelector('.dp-frame.on');
+            const fr = frame.getBoundingClientRect(), k = fr.width / frame.contentWindow.innerWidth;
+            const el = frame.contentDocument.querySelector(`[data-demo-target~="${P.steps[i].target}"]`);
+            const r = el.getBoundingClientRect();
+            rect = { left: fr.left + r.left * k, top: fr.top + r.top * k, right: fr.left + r.right * k, bottom: fr.top + r.bottom * k };
+            color = getComputedStyle(document.querySelector('.dp-hl')).outlineColor;
+          }, 150);
+        }
+        if (box && P.index === i + 1 && hidden == null) setTimeout(() => { hidden = P.highlight === null; }, 200);
+        if (hidden != null || (label && rect) || performance.now() - t0 > 9000) {
+          P.pause();
+          return done({ box: box && { left: box.left, top: box.top, right: box.right, bottom: box.bottom }, rect, hidden, color });
+        }
+        requestAnimationFrame(tick);
+      })();
+    }), label);
+    if (q.includes('shot')) await hp.screenshot({ path: path.join(OUT, 'highlight.png') });
+    await hp.close();
+    return res;
+  };
+  const near = (a, b) => Math.abs(a - b) < 3;
+  const hEl = await hlMeasure('?zoom=0&speed=2');
+  assert(hEl.box && near(hEl.box.left, hEl.rect.left) && near(hEl.box.right, hEl.rect.right) && near(hEl.box.top, hEl.rect.top) && near(hEl.box.bottom, hEl.rect.bottom),
+    'click highlight: the orange box surrounds the clicked element');
+  assert(hEl.hidden === true && /250, 70, 22|rgb\(250, 70, 22\)/.test(hEl.color), 'the box is orange (#FA4616) and hides on the next page update ' + hEl.color);
+  const hCard = await hlMeasure('?zoom=0&speed=2&highlight=card&hlcolor=00a3e0', 'Deal name');
+  assert(hCard.box && hCard.box.left <= hCard.rect.left + 1 && hCard.box.right >= hCard.rect.right - 1 && hCard.box.top <= hCard.rect.top + 1 && hCard.box.bottom >= hCard.rect.bottom - 1 &&
+    (hCard.box.right - hCard.box.left) * (hCard.box.bottom - hCard.box.top) > (hCard.rect.right - hCard.rect.left) * (hCard.rect.bottom - hCard.rect.top) * 1.3 && /0, 163, 224/.test(hCard.color),
+    '?highlight=card boxes the card around the element (and ?hlcolor sets the color) ' + JSON.stringify(hCard));
+  const hOff = await hlMeasure('?zoom=0&speed=2&highlight=0');
+  assert(!hOff.box, '?highlight=0 shows no box');
+  // Per-step override from the review page ends up in the export.
+  const hr = await ctx.newPage();
+  await hr.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
+  await hr.waitForSelector('#steps td.z select[title^="Highlight"]');
+  await hr.selectOption('#steps td.z select[title^="Highlight"] >> nth=0', 'off');
+  await hr.selectOption('[data-setting=highlight]', 'card');
+  await sleep(300);
+  const hx = await hr.evaluate(async (id) => {
+    const { buildDemoData } = await import('./lib/build.js');
+    const d = await buildDemoData(id);
+    return { set: d.manifest.settings.highlight, off: d.manifest.steps.filter((x) => x.highlight === false).length };
+  }, sessionId);
+  await hr.close();
+  assert(hx.set === 'card' && hx.off === 1, 'the review page saves the highlight setting and a per-step "Box: off"');
+  await hlMeasure('?zoom=1&speed=2&shot=1', 'Deal name');
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
+  // ---- voice-over (ElevenLabs text-to-speech) and a translated version (Claude), both stubbed
+  const mp3 = path.join(OUT, 'clip.mp3');
+  const { spawnSync } = await import('node:child_process');
+  spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=22050', '-t', '0.8', '-ac', '1', '-b:a', '32k', mp3]);
+  const clipB64 = fs.readFileSync(mp3).toString('base64');
+  const vp = await ctx.newPage();
+  vp.on('pageerror', (e) => errors.push('voice: ' + e.message));
+  vp.on('dialog', (d) => d.accept());
+  await vp.goto(`chrome-extension://${extId}/review.html#${narSession}`);
+  await vp.evaluate(() => chrome.storage.local.set({ elKey: 'el-test', anKey: 'sk-ant-test', anModel: '' }));
+  await vp.reload();
+  await vp.waitForSelector('#vo-gen');
+  await vp.evaluate((clip) => {
+    const orig = window.fetch;
+    window.__calls = [];
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.fetch = async (url, init = {}) => {
+      url = String(url);
+      if (url.startsWith('https://api.elevenlabs.io/v1/voices')) return json({ voices: [{ voice_id: 'VOICEA0000000000000a', name: 'Aria', labels: { gender: 'female' } }, { voice_id: 'VOICEB0000000000000b', name: 'Biel', labels: { gender: 'male' } }] });
+      if (url.startsWith('https://api.elevenlabs.io/v1/text-to-speech/')) {
+        window.__calls.push({ kind: 'tts', url, key: init.headers['xi-api-key'], body: JSON.parse(init.body) });
+        return json({ audio_base64: clip, alignment: { character_end_times_seconds: [0.8] } });
+      }
+      if (url === 'https://api.anthropic.com/v1/messages') {
+        const body = JSON.parse(init.body);
+        window.__calls.push({ kind: 'claude', key: init.headers['x-api-key'], browser: init.headers['anthropic-dangerous-direct-browser-access'], model: body.model, system: body.system });
+        const list = JSON.parse(body.messages[0].content.split('Items:\n')[1]);
+        return json({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ translations: list.map((x) => ({ id: x.id, text: '[ca] ' + x.text })) }) }] });
+      }
+      return orig(url, init);
+    };
+  }, clipB64);
+  await vp.click('#vo-reload');
+  await vp.waitForFunction(() => document.querySelectorAll('#vo-voice option').length === 2);
+  await vp.selectOption('#vo-voice', 'VOICEB0000000000000b');
+  await vp.click('#vo-gen');
+  await vp.waitForFunction(() => document.querySelector('.vclip button') && /narrated steps voiced/.test(document.getElementById('vo-info').textContent), null, { timeout: 10000 });
+  const vinfo = await vp.evaluate(async (id) => {
+    const { db } = await import('./lib/db.js');
+    const s = await db.getSession(id);
+    const steps = await db.getSteps(id);
+    return { vo: s.voiceover, n: Object.keys(s.voices || {}).length, voiced: steps.filter((x) => x.voice).map((x) => ({ ms: x.voiceMs, same: x.voiceText === x.narration })),
+      narrated: steps.filter((x) => x.narration).length, calls: window.__calls, info: document.getElementById('vo-info').textContent };
+  }, narSession);
+  assert(vinfo.voiced.length === vinfo.narrated && vinfo.n === vinfo.narrated && vinfo.voiced.every((v) => v.ms === 950 && v.same),
+    `Generate voice makes one clip per narrated step (${vinfo.voiced.length}/${vinfo.narrated}) · "${vinfo.info}"`);
+  const tts = vinfo.calls.filter((c) => c.kind === 'tts');
+  assert(tts[0].key === 'el-test' && /VOICEB0000000000000b\/with-timestamps/.test(tts[0].url) && tts[0].body.model_id === 'eleven_multilingual_v2' && vinfo.vo.name === 'Biel',
+    'text-to-speech uses the shared key, the chosen voice and the multilingual model');
+  await vp.screenshot({ path: path.join(OUT, 'voice.png'), fullPage: true });
+
+  // Export → the clips are embedded and play with the steps (a real click = user gesture for sound).
+  const voHtml = await vp.evaluate(async (id) => {
+    const { buildDemoHtml } = await import('./lib/build.js');
+    return (await buildDemoHtml(id, { inline: false })).html;
+  }, narSession);
+  const voParsed = parseDemo(voHtml);
+  const voSteps = voParsed.manifest.steps.filter((x) => x.voice);
+  assert(voSteps.length === vinfo.narrated && voSteps.every((x) => /^data:audio\/mpeg;base64,/.test(voParsed.assets[x.voice] || '')) && voParsed.manifest.voiceover.voiceId === 'VOICEB0000000000000b',
+    'the export embeds the voice clips as assets referenced by step.voice');
+  const file5 = path.join(OUT, 'voice.demo.html');
+  fs.writeFileSync(file5, voHtml);
+  const p5 = await ctx.newPage();
+  p5.on('pageerror', (e) => errors.push('voice player: ' + e.message));
+  await p5.goto('file://' + file5);
+  await p5.bringToFront();
+  await p5.waitForFunction(() => window.demoPlayer);
+  await p5.click('.dp-cover button');
+  await p5.waitForFunction(() => window.demoPlayer.voice && !window.demoPlayer.voice.paused, null, { timeout: 5000 });
+  const spoke = await p5.evaluate(() => ({ v: window.demoPlayer.voice, sub: document.querySelector('.dp-subtitle').textContent }));
+  await p5.evaluate(() => window.demoPlayer.pause());
+  const afterPause = await p5.evaluate(() => window.demoPlayer.voice);
+  assert(spoke.v && /^data:audio\/mpeg/.test(spoke.v.src) && spoke.sub.length > 0 && afterPause === null, 'the player speaks each clip with its subtitle, and pause stops it');
+  await p5.close();
+
+  // "As recorded" pace follows the voice: the stretch from one voiced step to the next lasts as long as its clip.
+  const clipId = voSteps[0].voice;
+  const fitMan = { ...voParsed.manifest, settings: { ...voParsed.manifest.settings, timing: 'recorded', autoStart: false, zoom: false },
+    steps: [
+      { id: 1, type: 'start', screen: voParsed.manifest.steps[0].screen, t: 0 },
+      { id: 2, type: 'change', screen: voParsed.manifest.steps[0].screen, t: 1000, narration: 'One.', voice: clipId, voiceMs: 1600, voiceText: 'One.' },
+      { id: 3, type: 'change', screen: voParsed.manifest.steps[0].screen, t: 3000 },
+      { id: 4, type: 'change', screen: voParsed.manifest.steps[0].screen, t: 5000, narration: 'Two.', voice: clipId, voiceMs: 1600, voiceText: 'Two.' },
+      { id: 5, type: 'end', screen: voParsed.manifest.steps[0].screen, t: 8000 },
+    ] };
+  const file6 = path.join(OUT, 'voice-fit.demo.html');
+  fs.writeFileSync(file6, assembleDemo({ ...voParsed, manifest: fitMan, playerJs: fs.readFileSync(path.join(EXT, 'player', 'player.js'), 'utf8'), playerCss: fs.readFileSync(path.join(EXT, 'player', 'player.css'), 'utf8') }));
+  const fitRun = async (q) => {
+    const p6 = await ctx.newPage();
+    p6.on('pageerror', (e) => errors.push('voice fit: ' + e.message));
+    await p6.goto('file://' + file6 + q);
+    await p6.waitForFunction(() => window.demoPlayer);
+    const at = await p6.evaluate(() => new Promise((res) => {
+      const at = {}; const t0 = performance.now();
+      window.demoPlayer.play();
+      (function tick() {
+        const i = window.demoPlayer.index;
+        if (at[i] == null) at[i] = performance.now() - t0;
+        if (i >= 3 || performance.now() - t0 > 8000) return res(at);
+        requestAnimationFrame(tick);
+      })();
+    }));
+    await p6.close();
+    return at[3] - at[1];
+  };
+  const fitted = await fitRun('?speed=2');
+  const unfitted = await fitRun('?speed=2&voice=0');
+  assert(Math.abs(fitted - 1000) < 250 && Math.abs(unfitted - 2000) < 300,
+    `"As recorded" timing is fitted to the voice clips (${Math.round(fitted)} ms at 2×, expected ≈1000; ${Math.round(unfitted)} ms without voice, expected ≈2000)`);
+
+  // Edit the narration → that clip is outdated (not exported) until regenerated.
+  const firstNar = await vp.evaluate(() => [...document.querySelectorAll('textarea.nar')].findIndex((t) => t.value));
+  await vp.fill(`#steps tr:nth-child(${firstNar + 1}) textarea.nar`, 'Welcome, everyone, to the new pipeline.');
+  await vp.press(`#steps tr:nth-child(${firstNar + 1}) textarea.nar`, 'Tab');
+  await vp.waitForFunction(() => document.querySelector('.vclip.stale'));
+  const staleOut = await vp.evaluate(async (id) => {
+    const { buildDemoData } = await import('./lib/build.js');
+    return (await buildDemoData(id)).manifest.steps.filter((x) => x.voice).length;
+  }, narSession);
+  await vp.click('#vo-gen');
+  await vp.waitForFunction(() => !document.querySelector('.vclip.stale') && document.querySelector('.vclip button'), null, { timeout: 10000 });
+  const ttsAfter = await vp.evaluate(() => window.__calls.filter((c) => c.kind === 'tts').map((c) => c.body.text));
+  assert(staleOut === vinfo.narrated - 1 && ttsAfter.length === tts.length + 1 && ttsAfter[ttsAfter.length - 1] === 'Welcome, everyone, to the new pipeline.',
+    'editing the narration marks its clip outdated; Generate voice redoes only that step');
+
+  // Language version: Claude translates screens, captions and narration into a new recording, then it is voiced.
+  await vp.waitForFunction(() => /narrated steps voiced/.test((document.getElementById('vo-info') || {}).textContent || '')); // re-rendered
+  await vp.selectOption('#lv-lang', 'ca');
+  await vp.click('#lv-go');
+  await vp.waitForFunction((id) => location.hash.slice(1) !== id && document.getElementById('title') && /Català/.test(document.getElementById('title').value), narSession, { timeout: 15000 });
+  const ver = await vp.evaluate(async () => {
+    const { db } = await import('./lib/db.js');
+    const { buildDemoData } = await import('./lib/build.js');
+    const id = location.hash.slice(1);
+    const s = await db.getSession(id);
+    const d = await buildDemoData(id);
+    const html = Object.values(d.screens).join('');
+    return { title: s.title, lang: d.manifest.lang, versionOf: s.versionOf,
+      narr: d.manifest.steps.filter((x) => x.narration).map((x) => x.narration),
+      voiced: d.manifest.steps.filter((x) => x.voice && d.assets[x.voice]).length,
+      screensTranslated: (html.match(/\[ca\] /g) || []).length,
+      claude: window.__calls.filter((c) => c.kind === 'claude'),
+      lastTts: window.__calls.filter((c) => c.kind === 'tts').slice(-1)[0] };
+  });
+  assert(ver.versionOf && ver.versionOf.id === narSession && ver.lang === 'ca' && / · Català$/.test(ver.title), 'Create version makes a new recording in the chosen language: ' + ver.title);
+  assert(ver.narr.length && ver.narr.every((t) => t.startsWith('[ca] ')) && ver.screensTranslated > 10, `narration and screen text are translated (${ver.screensTranslated} screen strings)`);
+  assert(ver.claude.length >= 1 && ver.claude[0].key === 'sk-ant-test' && ver.claude[0].browser === 'true' && ver.claude[0].model === 'claude-opus-5-5' && /Catalan/.test(ver.claude[0].system),
+    'translation calls Claude with the Anthropic key from Settings (claude-opus-5-5)');
+  assert(ver.voiced === ver.narr.length && ver.lastTts.body.text.startsWith('[ca] ') && /VOICEB0000000000000b/.test(ver.lastTts.url), 'the version is voiced in the new language with the same voice');
+  await vp.screenshot({ path: path.join(OUT, 'version.png'), fullPage: true });
+  await vp.close();
+  assert(errors.length === 0, 'no page errors ' + errors.join(' | '));
+
   console.log('\nAll good. Screenshots in', OUT);
 } finally {
   await ctx.close();

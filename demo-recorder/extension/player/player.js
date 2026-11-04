@@ -29,7 +29,7 @@
   var M = src.manifest;
   var steps = M.steps || [];
   var params = new URLSearchParams(location.search);
-  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
+  var settings = Object.assign({ mode: 'autoplay', speed: 1, browserFrame: true, cursor: true, showKeys: true, subtitles: true, voice: true, highlight: 'auto', highlightColor: '#FA4616', timing: 'auto', zoom: false, zoomLevel: 1.8, captions: true, controls: true, autoStart: false, background: 'dark', loop: false }, M.settings || {});
   if (params.get('mode')) settings.mode = params.get('mode');
   if (params.get('speed')) settings.speed = +params.get('speed') || 1;
   function flag(name, key) {
@@ -45,6 +45,11 @@
   flag('keys', 'showKeys');
   flag('zoom', 'zoom');
   flag('subs', 'subtitles');
+  flag('voice', 'voice');
+  var hlParam = params.get('highlight');
+  if (hlParam) settings.highlight = /^(0|false|off)$/.test(hlParam) ? 'off' : hlParam === 'card' || hlParam === 'element' ? hlParam : 'auto';
+  if (/^#?[0-9a-f]{3,8}$/i.test(params.get('hlcolor') || '')) settings.highlightColor = '#' + params.get('hlcolor').replace('#', '');
+  if (params.get('timing') === 'recorded' || params.get('timing') === 'auto') settings.timing = params.get('timing');
   flag('captions', 'captions');
   if (params.get('bg')) settings.background = params.get('bg');
   if (settings.captions === false) steps.forEach(function (s) { delete s.note; });
@@ -81,6 +86,7 @@
       '<div class="dp-progress"><div class="dp-track"></div></div>' +
       '<span class="dp-count"></span>' +
       '<select data-a="mode" title="Mode"><option value="autoplay">Autoplay</option><option value="guided">Guided</option></select>' +
+      '<select data-a="pace" title="Pace"><option value="auto">Natural pace</option><option value="recorded">As recorded</option></select>' +
       '<select data-a="speed" title="Speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1">1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2×</option></select>' +
       '<button type="button" data-a="fs" title="Fullscreen">⛶</button>' +
     '</div>';
@@ -93,7 +99,7 @@
   var overlay = $('.dp-overlay'), cursorEl = $('.dp-cursor'), callout = $('.dp-callout'), keycap = $('.dp-keycap');
   var cover = $('.dp-cover'), coverBtn = $('.dp-cover button');
   var track = $('.dp-track'), countEl = $('.dp-count'), playBtn = root.querySelector('[data-a=play]');
-  var modeSel = root.querySelector('[data-a=mode]'), speedSel = root.querySelector('[data-a=speed]');
+  var modeSel = root.querySelector('[data-a=mode]'), speedSel = root.querySelector('[data-a=speed]'), paceSel = root.querySelector('[data-a=pace]');
 
   document.title = M.title || document.title;
   if (!settings.browserFrame) win.classList.add('dp-noframe');
@@ -101,6 +107,7 @@
   if (settings.controls === false) root.classList.add('dp-nocontrols');
   document.documentElement.classList.add('dp-bg-' + (settings.background || 'dark'));
   modeSel.value = settings.mode;
+  paceSel.value = settings.timing === 'recorded' ? 'recorded' : 'auto';
   speedSel.value = String(settings.speed);
   if (!speedSel.value) { speedSel.value = '1'; }
 
@@ -260,9 +267,11 @@
     return { x: r.left + r.width * (fx == null ? 0.5 : fx), y: r.top + r.height * (fy == null ? 0.5 : fy), rect: r };
   }
 
+  var moveCap = null; // max cursor travel time in a timed step
   function moveCursor(x, y) {
     var dist = Math.hypot(x - cursor.x, y - cursor.y);
     var ms = clamp(250 + dist * 0.6, 300, 1100);
+    if (moveCap != null) ms = Math.max(150, Math.min(ms, moveCap));
     cursorEl.style.transitionDuration = (ms / settings.speed) + 'ms';
     cursorEl.style.transform = 'translate(' + x + 'px,' + y + 'px)';
     cursor.x = x; cursor.y = y;
@@ -286,6 +295,62 @@
     cursorEl.classList.add('down');
     setTimeout(function () { cursorEl.classList.remove('down'); }, 160);
   }
+
+  // Click highlight: a thick box around the element (or the card around it) being clicked or typed
+  // into, with the rest of the screen dimmed. It glides from one target to the next.
+  var hlEl = document.createElement('div');
+  hlEl.className = 'dp-hl';
+  hlEl.style.setProperty('--dp-hl-color', settings.highlightColor || '#FA4616');
+  overlay.appendChild(hlEl);
+  // step.highlight overrides the export setting: false (off), 'element' or 'card'.
+  function highlightMode(s) {
+    if (s.highlight === false) return 'off';
+    if (s.highlight === 'element' || s.highlight === 'card') return s.highlight;
+    if (s.highlight === true) return 'element';
+    var g = settings.highlight;
+    return g === 'card' || g === 'element' ? g : g === 'off' || g === false ? 'off' : 'auto';
+  }
+  // The block around an element that looks like a card: rounded, bordered, shadowed or with its own
+  // background; bigger than the element and smaller than 60% of the screen. Else the element itself.
+  function cardOf(el) {
+    var doc = el.ownerDocument, w = doc.defaultView;
+    var r0 = el.getBoundingClientRect(), max = w.innerWidth * w.innerHeight * 0.6;
+    var n = el;
+    for (var k = 0; k < 6; k++) {
+      n = n.parentElement || (n.getRootNode && n.getRootNode().host) || null;
+      if (!n || n === doc.body || n === doc.documentElement) break;
+      var r = n.getBoundingClientRect();
+      if (r.width * r.height > max) break;
+      if (r.width < r0.width + 8 && r.height < r0.height + 8) continue;
+      var cs = w.getComputedStyle(n);
+      var bg = cs.backgroundColor;
+      if (parseFloat(cs.borderTopLeftRadius) > 0 || cs.boxShadow !== 'none' || parseFloat(cs.borderTopWidth) > 0 ||
+          (bg && bg !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(bg))) return n;
+    }
+    return el;
+  }
+  function showHighlight(el, mode) {
+    if (!el || mode === 'off') { hideHighlight(); return; }
+    if (mode === 'auto') {
+      // Icons and small buttons read better with the card around them; everything else is boxed itself.
+      var r0 = el.getBoundingClientRect();
+      mode = r0.width < 48 && r0.height < 48 ? 'card' : 'element';
+    }
+    var t = mode === 'card' ? cardOf(el) : el;
+    var r = t.getBoundingClientRect();
+    var glide = hlEl.classList.contains('on');
+    var ms = Math.round(700 / settings.speed);
+    hlEl.style.transition = glide
+      ? ['left', 'top', 'width', 'height'].map(function (p) { return p + ' ' + ms + 'ms cubic-bezier(.6,.05,.25,1)'; }).join(',') + ',opacity .3s'
+      : 'opacity .3s';
+    hlEl.style.left = r.left + 'px';
+    hlEl.style.top = r.top + 'px';
+    hlEl.style.width = r.width + 'px';
+    hlEl.style.height = r.height + 'px';
+    hlEl.classList.add('on');
+    root.classList.add('dp-hl-on');
+  }
+  function hideHighlight() { hlEl.classList.remove('on'); root.classList.remove('dp-hl-on'); }
 
   var hotspot = null;
   function showHotspot(el) {
@@ -390,12 +455,79 @@
   }
   function hideKey() { keycap.classList.remove('on'); }
 
-  // Narration subtitles (until real voice clips exist, the spoken text is shown at the bottom).
-  function showSubtitle(text) {
+  // Narration subtitles: the spoken text is shown at the bottom (with or without a voice clip).
+  // A subtitle stays until its sentence has been said (subUntil), also over the following steps
+  // that have no narration of their own; a step with its own narration replaces it.
+  var subUntil = 0, subTimer = null;
+  function showSubtitle(text, ms) {
     subtitle.textContent = text;
     hud.classList.add('has-sub');
+    subUntil = Date.now() + ms;
+    clearTimeout(subTimer);
+    subTimer = setTimeout(function () { if (Date.now() >= subUntil - 30) hud.classList.remove('has-sub'); }, ms);
   }
-  function hideSubtitle() { hud.classList.remove('has-sub'); }
+  // Voice-over clips (ElevenLabs text-to-speech, embedded as demo-asset:aN in step.voice).
+  // A clip keeps playing over the following steps that have no clip of their own; the next step
+  // with a clip waits until the previous one has finished, so sentences are never cut off.
+  var hasVoice = settings.voice !== false && steps.some(function (s) { return s.voice && src.assets[s.voice]; });
+  var voiceAudio = null;
+  function stopVoice() { if (voiceAudio) { try { voiceAudio.pause(); } catch (e) {} voiceAudio = null; } }
+  function startVoice(s) {
+    stopVoice();
+    var a = new Audio(src.assets[s.voice]);
+    a.playbackRate = settings.speed;
+    voiceAudio = a;
+    var p = a.play();
+    // Browsers block sound before the viewer interacts (autoStart): subtitles still show.
+    if (p && p.catch) p.catch(function () { if (voiceAudio === a) voiceAudio = null; });
+  }
+  async function waitVoice() {
+    while (voiceAudio && !voiceAudio.ended && !voiceAudio.paused) await sleep(80 * settings.speed);
+  }
+  function hideSubtitle() { clearTimeout(subTimer); subUntil = 0; hud.classList.remove('has-sub'); }
+  function keepOrHideSubtitle() { if (Date.now() >= subUntil) hideSubtitle(); }
+
+  // How long a step lasts (video/recording ms), or null for the natural, animation-driven pace.
+  // step.duration overrides; in "recorded" timing it's the gap to the next step's original time.
+  function recordedGap(i) {
+    var s = steps[i], n = steps[i + 1];
+    if (n && typeof n.t === 'number' && typeof s.t === 'number') return Math.max(250, n.t - s.t);
+    return s.hold || 2000;
+  }
+  function stepDuration(i) {
+    var s = steps[i];
+    if (typeof s.duration === 'number' && s.duration > 0) return s.duration;
+    if (settings.timing === 'recorded') return Math.max(250, Math.round(recordedGap(i) * voiceFit()[i]));
+    return null;
+  }
+  // Fit the recorded timing to the voice clips: the stretch from one voiced step to the next is
+  // scaled so it lasts as long as that clip (plus a short pause). Screens then change at the same
+  // point of the sentence as in the original, whatever the new voice's (or language's) pace.
+  var VOICE_PAUSE = 400;
+  var fitCache = null;
+  function voiceFit() {
+    if (fitCache) return fitCache;
+    fitCache = steps.map(function () { return 1; });
+    if (!hasVoice) return fitCache;
+    var starts = [];
+    steps.forEach(function (s, i) { if (s.voice && src.assets[s.voice] && s.voiceMs) starts.push(i); });
+    starts.forEach(function (a, k) {
+      var b = k + 1 < starts.length ? starts[k + 1] : steps.length;
+      var free = 0, fixed = 0;
+      for (var j = a; j < b; j++) {
+        if (typeof steps[j].duration === 'number' && steps[j].duration > 0) fixed += steps[j].duration;
+        else free += recordedGap(j);
+      }
+      if (!free) return;
+      // The last stretch only needs to hold the clip; earlier ones match it exactly.
+      var want = steps[a].voiceMs + VOICE_PAUSE - fixed;
+      if (b === steps.length && want < free) return;
+      var f = Math.max(0.5, want / free);
+      for (var j2 = a; j2 < b; j2++) fitCache[j2] = f;
+    });
+    return fitCache;
+  }
+  var typingBudget = null; // ms available for typing in a timed step
   // Roughly how long the narration takes to say (~15 characters per second).
   function speakTime(text) { return clamp(text.length * 65, 1500, 20000); }
 
@@ -426,6 +558,8 @@
     }
     var count = to.length - common;
     var per = count > 80 ? 15 : count > 30 ? 35 : 60;
+    // In a timed step, finish typing within the step's budget (average delay ≈ 1.4 × per).
+    if (typingBudget != null && count > 0) per = clamp(typingBudget / count / 1.4, 6, per);
     for (var k = common; k < to.length; k++) {
       set(to.slice(0, k + 1));
       await sleep(per + Math.random() * per * 0.8);
@@ -484,6 +618,10 @@
   async function runStep(i, force) {
     var my = runId;
     var s = steps[i];
+    var voiced = !!(hasVoice && s.voice && src.assets[s.voice]);
+    if (voiced && settings.mode !== 'guided') { await waitVoice(); check(my); }
+    // The box follows clicks and typing (and key presses right after typing); other steps clear it.
+    if (!s.target || (s.type !== 'click' && s.type !== 'type' && !(s.type === 'key' && i > 0 && steps[i - 1].type === 'type'))) hideHighlight();
     hideCallout();
     hideKey();
     hideHotspot();
@@ -497,13 +635,28 @@
     // Keep the camera during key presses (they continue the typing); zoom out for everything else.
     var zoomOut = s.type !== 'click' && s.type !== 'type' && s.type !== 'key' && setZoom(1, 0, 0, true);
     var stepStart = Date.now();
+    var target = guided ? null : stepDuration(i);
+    var fit = target != null;
+    moveCap = fit ? target * 0.4 : null;
+    typingBudget = null;
     var narr = settings.subtitles !== false && s.narration ? String(s.narration) : '';
-    if (narr) showSubtitle(narr); else hideSubtitle();
+    if (voiced) startVoice(s);
+    if (narr) {
+      // Real spoken length: the voice clip, else narrationEnd from the transcript, else an estimate.
+      var spoken = voiced && s.voiceMs ? s.voiceMs
+        : typeof s.narrationEnd === 'number' && typeof s.t === 'number' && s.narrationEnd > s.t
+        ? s.narrationEnd - s.t : speakTime(narr);
+      showSubtitle(narr, spoken / settings.speed);
+    } else {
+      keepOrHideSubtitle();
+    }
+    var g = function (ms) { return fit ? 0 : ms; }; // default pauses are absorbed by the step's duration
 
     switch (s.type) {
       case 'click': {
         if (el) {
           var p = targetPoint(el, s.x, s.y);
+          showHighlight(el, highlightMode(s));
           var zc = setZoom(zoomLevel(s), p.x, p.y, true);
           await Promise.all([moveCursor(p.x, p.y), zc ? sleep(750) : null]);
         } else {
@@ -516,15 +669,16 @@
           showCallout(s.note, el, false);
           await sleep(readTime(s.note));
         } else {
-          await sleep(200);
+          await sleep(g(200));
         }
         clickFx();
-        await sleep(s.hold || 280);
+        await sleep(fit ? 250 : (s.hold || 280));
         break;
       }
       case 'type': {
         if (el) {
           var c = targetPoint(el, 0.5, 0.5);
+          showHighlight(el, highlightMode(s));
           var zt = setZoom(zoomLevel(s), c.x, c.y, true);
           var r = el.getBoundingClientRect();
           if (cursor.x < r.left || cursor.x > r.right || cursor.y < r.top || cursor.y > r.bottom) {
@@ -538,40 +692,51 @@
         }
         if (s.note) showCallout(s.note, el, false);
         var t0 = Date.now();
+        if (fit) typingBudget = Math.max(300, target * 0.8 - (Date.now() - stepStart) * settings.speed);
         await typeText(el, s.from || '', s.text || '');
+        typingBudget = null;
         if (s.note) {
           if (guided) { showCallout(s.note, el, true); await waitForUser(null); }
           else await sleep(Math.max(500, readTime(s.note) - (Date.now() - t0)));
         } else {
-          await sleep(s.hold || 450);
+          await sleep(g(s.hold || 450));
         }
         break;
       }
       case 'key': {
-        if (settings.showKeys === false) { await noteGate(s, el, 150); break; }
+        if (settings.showKeys === false) { await noteGate(s, el, g(150)); break; }
         showKey(s.key);
-        await noteGate(s, el, 1000);
+        await noteGate(s, el, fit ? Math.min(1000, target * 0.8) : 1000);
         hideKey();
         break;
       }
       case 'scroll': {
         await animateScroll(doc, el, s.top || 0, s.left || 0);
-        await noteGate(s, el, 200);
+        await noteGate(s, el, g(200));
         break;
       }
       case 'start':
       case 'navigate':
-        await noteGate(s, el, 900);
+        await noteGate(s, el, g(900));
         break;
       case 'end':
-        await noteGate(s, el, 1500);
+        await noteGate(s, el, fit ? target : 1500);
         break;
       default: // change
-        await noteGate(s, el, 450);
+        await noteGate(s, el, g(450));
+    }
+    moveCap = null;
+    if (fit) {
+      // Timed step: last exactly as long as in the original (animations ran inside that time).
+      var rest = target - (Date.now() - stepStart) * settings.speed;
+      if (rest > 0) await sleep(rest);
+      check(my);
+      return;
     }
     // Let a zoom-out finish before the next step, so the full page is actually seen,
     // and give narration time to be read (autoplay; guided mode waits for the viewer anyway).
-    var minMs = Math.max(zoomOut ? 750 : 0, narr && !guided ? speakTime(narr) : 0);
+    var talk = voiced ? (s.voiceMs || 0) : narr ? speakTime(narr) : 0;
+    var minMs = Math.max(zoomOut ? 750 : 0, guided ? 0 : talk);
     var left = minMs - (Date.now() - stepStart) * settings.speed;
     if (left > 0) await sleep(left);
     check(my);
@@ -594,6 +759,8 @@
         if (idx < steps.length - 1) idx++; else { idx = steps.length; break; }
         updateUI();
       }
+      await waitVoice(); // let the last sentence finish
+      if (my !== runId) return;
       playing = false;
       updateUI();
       if (settings.loop) {
@@ -601,6 +768,7 @@
         idx = 0;
         play();
       } else {
+        hideHighlight();
         showCover('↻  Replay');
       }
     } catch (e) {
@@ -614,6 +782,7 @@
     if (!playing) return;
     playing = false;
     abortAll();
+    stopVoice();
     hideSubtitle();
     hideCallout();
     hideKey();
@@ -624,9 +793,11 @@
     var resume = keepPlaying != null ? keepPlaying : playing;
     playing = false;
     abortAll();
+    stopVoice();
     hideCallout();
     hideKey();
     hideSubtitle();
+    hideHighlight();
     idx = clamp(i, 0, steps.length - 1);
     cover.hidden = true;
     updateUI();
@@ -684,7 +855,8 @@
     else if (act === 'fs') { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(function () {}); }
   });
   modeSel.addEventListener('change', function () { settings.mode = modeSel.value; if (playing) jump(idx, true); modeSel.blur(); });
-  speedSel.addEventListener('change', function () { settings.speed = +speedSel.value || 1; speedSel.blur(); });
+  speedSel.addEventListener('change', function () { settings.speed = +speedSel.value || 1; if (voiceAudio) voiceAudio.playbackRate = settings.speed; speedSel.blur(); });
+  paceSel.addEventListener('change', function () { settings.timing = paceSel.value; if (playing) jump(idx, true); paceSel.blur(); });
   $('.dp-progress').addEventListener('click', function (e) {
     var r = track.getBoundingClientRect();
     var i = Math.floor(clamp((e.clientX - r.left) / r.width, 0, 0.9999) * steps.length);
@@ -707,9 +879,14 @@
   if (!steps.length) {
     showCover('This demo has no steps');
   } else {
-    showScreen(steps[0].screen).then(function () {
-      preloadNext(0);
+    // Start at a given step (the extension preview reopens where it was after an edit).
+    var startAt = clamp(parseInt(window.DEMO_START_STEP || params.get('step') || 0, 10) || 0, 0, steps.length - 1);
+    idx = startAt;
+    updateUI();
+    showScreen(steps[startAt].screen).then(function () {
+      preloadNext(startAt);
       if (settings.autoStart) play();
+      else if (startAt > 0) showCover('▶  Continue from step ' + (startAt + 1));
       else showCover(settings.mode === 'guided' ? '▶  Start interactive tour' : '▶  Play demo');
     });
   }
@@ -718,5 +895,7 @@
   window.demoPlayer = {
     play: play, pause: pause, jump: jump,
     get index() { return idx; }, get playing() { return playing; }, steps: steps,
+    get highlight() { return hlEl.classList.contains('on') ? hlEl.getBoundingClientRect() : null; },
+    get voice() { return voiceAudio ? { src: voiceAudio.src.slice(0, 40), paused: voiceAudio.paused, rate: voiceAudio.playbackRate } : null; },
   };
 })();

@@ -27,10 +27,16 @@ An exported demo is one HTML file with these `<script>` data blocks (none of the
 - `type`: types into the target, animating from `from` to `text`.
 - `key`: shows a keycap overlay (`key`, e.g. `Escape`, `Ctrl+K`).
 - `scroll`: animates the window (or the target element) to `top`/`left`.
-- Optional on any step: `note` (caption callout), `hold` (ms to pause), `narration` (what the presenter says during this step: spoken text, shown as subtitles today and voiced with ElevenLabs later).
+- Optional on any step: `note` (caption callout), `hold` (ms to pause), `duration` (ms the step lasts; overrides the pace), `narration` (what the presenter says during this step: shown as subtitles, and voiced when the step has a clip), `narrationEnd` (video/recording ms when that narration stops being spoken; the subtitle stays on screen until then, also over the following steps).
+- Voice-over clips (made with ElevenLabs text-to-speech): `voice` (an asset id in `#demo-assets`, e.g. `a12`, holding `data:audio/mpeg;base64,…`), `voiceMs` (when the speech ends, in ms) and `voiceText` (the narration the clip was made from). When `narration` no longer equals `voiceText`, the clip is outdated: regenerate it with `node tools/demo.mjs voice`. Never write `voice` fields by hand.
+- Optional on `click`/`type` steps: `highlight`, the orange box around the target: `false` (no box on this step), `'element'` or `'card'` (the block around the element). Overrides the setting.
 - Optional on `click`/`type` steps: `zoom`. Use `false` to keep the full page in view for that step, a number (e.g. `2`) for a custom zoom level, or `true` to zoom even when auto-zoom is off globally. Zoom is a CSS transform on the live HTML, so it never affects what you can edit.
 
-**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `autoStart` (play on open, no Play button), `speed`, `loop`, `controls` (bottom control bar), `browserFrame`, `cursor`, `showKeys` (keycap overlay for key presses), `captions`, `subtitles` (show `narration` as subtitles), `background` (`dark` | `light` | `none`), `zoom` (auto-zoom onto clicks and typing) and `zoomLevel` (e.g. `1.8`). URL overrides: `?mode=guided`, `?autoplay=1`, `?speed=2`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?subs=0`, `?bg=light`, `?zoom=1`.
+**Settings** (`demo-data.settings`): `mode` is `autoplay` or `guided` (the viewer clicks hotspots to advance). Also `autoStart` (play on open, no Play button), `timing` (`auto` = natural pacing, `recorded` = each step lasts as in the original, gap to the next step's `t`; video conversions use `recorded` so the voice-over stays in sync), `speed`, `loop`, `controls` (bottom control bar), `browserFrame`, `cursor`, `showKeys` (keycap overlay for key presses), `captions`, `subtitles` (show `narration` as subtitles), `voice` (play the voice clips), `highlight` (`auto` | `element` | `card` | `off`: a thick box around what is clicked or typed into, the rest dimmed; `auto`, the default, boxes the card around small icon-like targets and the element otherwise), `highlightColor` (default `#FA4616`), `background` (`dark` | `light` | `none`), `zoom` (auto-zoom onto clicks and typing) and `zoomLevel` (e.g. `1.8`). URL overrides: `?mode=guided`, `?timing=recorded`, `?step=N`, `?autoplay=1`, `?speed=2`, `?loop=1`, `?controls=0`, `?frame=0`, `?cursor=0`, `?keys=0`, `?captions=0`, `?subs=0`, `?voice=0`, `?highlight=0|auto|element|card`, `?hlcolor=00a3e0`, `?bg=light`, `?zoom=1`.
+
+Also in `demo-data`: `lang` (ISO code of the demo's language, set by translations) and `voiceover` (`{ voiceId, name, model }`: the ElevenLabs voice used for the clips).
+
+**Voice playback:** a clip keeps playing over the following steps that have no clip of their own. The next step with a clip waits until the previous clip has finished, so sentences are never cut off. In natural pace, a voiced step lasts at least as long as its clip. In `recorded` pace the timing is **fitted to the voice**: the stretch from one voiced step to the next is scaled to that clip's length (`voiceMs` + 0.4 s pause), so screens change at the same point of the sentence as in the original, whatever the voice or language. Explicit `duration`s are kept, and `?voice=0` plays the original timing.
 
 ## Personalization workflow
 
@@ -69,6 +75,13 @@ Never edit the original recording in place. Work in `demos/<prospect-slug>/`.
    ```
    Optionally render a screenshot with Playwright (preinstalled in cloud sessions) by opening the file and calling `window.demoPlayer.jump(i, false)`.
 
+## Language versions and voice-over
+
+- `/translate-demo <demo> <language>` (`.claude/commands/translate-demo.md`): `demo.mjs texts` lists every string, you write the translations, and `demo.mjs translate` puts them in place. Translate the screens as well as the captions, typed values and narration.
+- `node tools/demo.mjs voices` lists the ElevenLabs voices. `node tools/demo.mjs voice <demo> [--voice name] [--lang xx] [--force]` voices every narrated step and embeds the clips. It only redoes steps whose narration changed, unless you pass `--force` or pick another voice.
+- The ElevenLabs key comes from `ELEVENLABS_API_KEY` or a `.env` next to the demo (or a parent folder). It needs the Text to Speech and Voices (read) permissions.
+- In the extension, the same is available on the review page: the 🔊 Voice-over card, and 🌐 Language version, which translates with Claude through the Anthropic API key in ⚙ Settings.
+
 ## Rules: don't break playback
 
 - Do **not** remove, rename or move `data-demo-target` attributes. They are how clicks and typing find their element. Keep the element that carries the attribute.
@@ -86,7 +99,7 @@ Use `/video-to-demo <video>` (`.claude/commands/video-to-demo.md`) to turn a scr
 - `frames`: extra frames at given times;
 - `crop`: image assets from frames;
 - `compare`: video frame next to your HTML;
-- `narrate`: adds the voice-over to a finished demo later, by each step's video time `t`.
+- `narrate`: adds the narration text to a finished demo later, by each step's video time `t` (then `demo.mjs voice` can give it a new voice).
 
 You rebuild the screens as HTML with one shared `css/app.css` and define the steps. Placeholder screens carry `data-demo-placeholder`; none may remain at the end.
 

@@ -271,6 +271,7 @@ async function fetchCss(key, href) {
 async function handle(msg, sender) {
   await ready;
   switch (msg.type) {
+    case 'preview-refresh': return { ok: true }; // for preview tabs, nothing to do here
     case 'getState': {
       const steps = state ? await db.countSteps(state.sessionId) : 0;
       return { state, steps };
