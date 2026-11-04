@@ -91,6 +91,45 @@ try {
   await ext.evaluate(() => chrome.runtime.sendMessage({ type: 'stop' }));
   await sleep(500);
 
+  // ---- before any API key is saved: warn up front, and the Settings page lays out without overlaps
+  const wk = await ctx.newPage();
+  wk.on('pageerror', (e) => errors.push('warnings: ' + e.message));
+  await wk.goto(`chrome-extension://${extId}/popup.html`);
+  const narrWas = await wk.isChecked('#narration');
+  if (!narrWas) await wk.check('#narration');
+  await wk.waitForSelector('#nokey:not([hidden])');
+  const hdrGear = await wk.evaluate(() => !!document.querySelector('header #settings'));
+  if (!narrWas) await wk.uncheck('#narration');
+  assert(hdrGear, 'popup: ⚙ Settings sits in the header, and recording narration without an ElevenLabs key shows a warning');
+  await wk.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
+  await wk.waitForFunction(() => !document.getElementById('lv-warn').hidden);
+  const lw = await wk.evaluate(() => ({ text: document.getElementById('lv-warn').textContent, go: document.getElementById('lv-go').disabled, voice: document.getElementById('lv-voice').disabled, top: !!document.getElementById('top-settings'), side: !!document.querySelector('.setlink') }));
+  assert(/Anthropic API key/.test(lw.text) && /won't be voiced/.test(lw.text) && lw.go && lw.voice, 'Language version warns that translation needs an Anthropic key (button disabled) and voice needs ElevenLabs');
+  assert(lw.top && !lw.side, '⚙ Settings is at the top right of the recordings page (no longer in the sidebar)');
+  for (const [w, h] of [[1280, 800], [1600, 900]]) {
+    await wk.setViewportSize({ width: w, height: h });
+    await wk.goto(`chrome-extension://${extId}/review.html#settings`);
+    await wk.waitForSelector('.setgrid fieldset');
+    const lay = await wk.evaluate(() => {
+      const bad = [];
+      for (const fs of document.querySelectorAll('.setgrid fieldset')) {
+        const f = fs.getBoundingClientRect();
+        for (const c of fs.querySelectorAll('input, select, button')) {
+          const r = c.getBoundingClientRect();
+          if (r.left < f.left - 1 || r.right > f.right + 1) bad.push((c.id || c.dataset.pref || c.textContent).trim());
+        }
+      }
+      for (const k of document.querySelectorAll('.setgrid .keyrow')) {
+        const a = k.children[0].getBoundingClientRect();
+        for (const b of [...k.children].slice(1)) { const r = b.getBoundingClientRect(); if (r.top > a.bottom - 4) bad.push('wrapped ' + (b.id || b.textContent)); }
+      }
+      return { bad, el: !document.getElementById('el-missing').hidden, an: !document.getElementById('an-missing').hidden, on: document.getElementById('top-settings').classList.contains('on') };
+    });
+    await wk.screenshot({ path: path.join(OUT, `settings-${w}.png`) });
+    assert(!lay.bad.length && lay.el && lay.an && lay.on, `Settings at ${w}px: nothing spills out of its box, buttons stay next to their fields, both "not set" warnings show ` + lay.bad.join(', '));
+  }
+  await wk.close();
+
   const result = await ext.evaluate(async (id) => {
     const { buildDemoHtml, loadSession } = await import('./lib/build.js');
     const { steps, screens } = await loadSession(id);
@@ -548,7 +587,7 @@ try {
     await st.goto(`chrome-extension://${extId}/review.html#${sidN}`);
     await st.waitForSelector('#steps tr');
   }
-  const perRec = await st.evaluate(() => ({ card: !!document.querySelector('details#settings'), sidebar: !!document.querySelector('.setlink') }));
+  const perRec = await st.evaluate(() => ({ card: !!document.querySelector('details#settings'), sidebar: !!document.getElementById('top-settings') }));
   await st.goto(`chrome-extension://${extId}/review.html#${narSession}`);
   await st.waitForSelector('#narr:not([hidden])');
   await st.waitForFunction(() => /✓ set/.test(document.getElementById('narr-key').textContent));

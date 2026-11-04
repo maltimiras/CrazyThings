@@ -139,7 +139,10 @@ async function startTest() {
 function showNarrationBox() {
   $('narrbox').hidden = !$('narration').checked;
   if ($('narrbox').hidden) stopTest();
+  // Without an ElevenLabs key there is no transcription after recording: say so before recording.
+  chrome.storage.local.get('elKey').then(({ elKey }) => { $('nokey').hidden = !!elKey; });
 }
+$('nokey-set').onclick = (e) => { e.preventDefault(); chrome.tabs.create({ url: chrome.runtime.getURL('review.html#settings') }); };
 
 function guard(fn) {
   return async () => {

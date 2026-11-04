@@ -25,6 +25,8 @@
     .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
     button.small { padding: 4px 8px; font-size: 12px; }
     .warn { color: #b45309; font-size: 12px; }
+    .warn a { color: inherit; font-weight: 600; }
+    .hdrbtn { margin-left: auto; padding: 3px 8px; font-size: 15px; line-height: 1; }
     label.mic { display: flex; gap: 6px; align-items: center; font-size: 13px; }
     .meter { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; }
     .meter i { display: block; height: 100%; width: 0; background: #22c55e; transition: width .06s; }
@@ -35,7 +37,7 @@
   </style>
 </head>
 <body>
-  <header id="hdr"><span class="dot"></span><b>Demo Recorder</b><span id="status" class="muted"></span></header>
+  <header id="hdr"><span class="dot"></span><b>Demo Recorder</b><span id="status" class="muted"></span><button id="settings" class="hdrbtn" title="Settings: API keys, voice, languages">⚙</button></header>
   <main>
     <div id="idle">
       <div style="display:grid;gap:8px">
@@ -68,6 +70,7 @@
           <div class="meter"><i id="level"></i></div>
           <div id="heard" class="heard"></div>
           <label class="chk"><input type="checkbox" id="live" checked> Live transcript while recording</label>
+          <div id="nokey" class="warn" hidden>⚠ No ElevenLabs API key: only Chrome's live transcript will turn your voice into text, and you won't be able to transcribe the recording afterwards. <a href="#" id="nokey-set">Add the key in ⚙ Settings</a>.</div>
         </div>
         <button id="start" class="primary">● Start recording this tab</button>
         <div class="muted">Clicks, typing, keyboard shortcuts, scrolling and page changes are captured. Password values are masked.</div>
@@ -80,7 +83,7 @@
         <button id="stop" class="danger">■ Stop &amp; review</button>
       </div>
     </div>
-    <div class="row"><button id="library" style="flex:1">Open recordings</button><button id="importdemo" title="Load a .demo.html someone shared with you">⬆ Import demo…</button><button id="settings" title="Settings (ElevenLabs key, transcript language)">⚙</button></div>
+    <div class="row"><button id="library" style="flex:1">Open recordings</button><button id="importdemo" title="Load a .demo.html someone shared with you">⬆ Import demo…</button></div>
     <div id="warn" class="warn"></div>
     <div id="err" class="err"></div>
   </main>
