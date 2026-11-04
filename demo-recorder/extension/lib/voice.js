@@ -5,15 +5,28 @@ export const EL_API = (typeof process !== 'undefined' && process.env && process.
 export const DEFAULT_TTS_MODEL = 'eleven_multilingual_v2';
 export const TTS_FORMAT = 'mp3_44100_64'; // ~8 KB per second of speech, plenty for a voice-over
 
+// A readable explanation of an ElevenLabs error (their bodies are JSON like {"detail":{"code","message"}}).
+export function elErrorMessage(status, text, permission = '') {
+  let detail = {};
+  try { const j = JSON.parse(text); detail = typeof j.detail === 'object' && j.detail ? j.detail : { message: String(j.detail || j.message || '') }; } catch { detail = { message: String(text || '') }; }
+  const code = String(detail.code || detail.status || '');
+  const raw = String(detail.message || '');
+  if (/invalid_api_key|authentication/i.test(code + ' ' + (detail.type || '')) || /key id used as api key/i.test(raw)) {
+    return 'This isn\'t a valid ElevenLabs API key. Copy the key itself (it starts with sk_), not its ID: ElevenLabs → Developers → API keys → Create key.';
+  }
+  if (status === 401 && permission && new RegExp(permission).test(text)) {
+    const name = { voices_read: 'Voices (read)', text_to_speech: 'Text to Speech', speech_to_text: 'Speech to Text' }[permission] || permission;
+    return `The key works but isn't allowed to use ${name}: edit the key in ElevenLabs (Developers → API keys) and enable that permission.`;
+  }
+  if (status === 401) return 'ElevenLabs rejected the key. Check it was copied completely in ⚙ Settings.';
+  if (status === 402 || /quota|credits/i.test(code + raw)) return 'Not enough ElevenLabs credits for this.';
+  if (status === 429) return 'ElevenLabs rate limit reached: try again in a moment.';
+  if (status === 404) return 'Voice not found: pick another voice.';
+  return `ElevenLabs error ${status}${raw ? ': ' + raw.slice(0, 160) : ''}`;
+}
+
 function elError(status, text, permission) {
-  let hint = '';
-  if (status === 401 && new RegExp(permission).test(text)) {
-    hint = `the key is not allowed to use ${permission === 'voices_read' ? 'Voices (read)' : 'Text to Speech'}: enable that permission on the key in ElevenLabs (Developers → API keys)`;
-  } else if (status === 401) hint = 'check the ElevenLabs API key';
-  else if (status === 402 || /quota/i.test(text)) hint = 'not enough ElevenLabs credits for this';
-  else if (status === 429) hint = 'rate limit reached; try again shortly';
-  else if (status === 404) hint = 'voice not found; pick another voice';
-  const e = new Error(`ElevenLabs ${status}${hint ? ' — ' + hint : ''}: ${String(text).slice(0, 200)}`);
+  const e = new Error(elErrorMessage(status, text, permission));
   e.status = status;
   return e;
 }

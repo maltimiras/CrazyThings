@@ -98,9 +98,16 @@ try {
   const narrWas = await wk.isChecked('#narration');
   if (!narrWas) await wk.check('#narration');
   await wk.waitForSelector('#nokey:not([hidden])');
-  const hdrGear = await wk.evaluate(() => !!document.querySelector('header #settings'));
+  const hdrGear = await wk.evaluate(() => {
+    // Long microphone names must not widen the popup; the Start button stays in view (sticky footer).
+    const o = document.createElement('option');
+    o.textContent = 'Default - A Very Long Microphone Name With Many Words In It (31b2:0011)';
+    document.getElementById('mic').appendChild(o);
+    const start = document.getElementById('start').getBoundingClientRect();
+    return !!document.querySelector('header #settings') && document.body.scrollWidth <= 340 && start.bottom <= window.innerHeight;
+  });
   if (!narrWas) await wk.uncheck('#narration');
-  assert(hdrGear, 'popup: ⚙ Settings sits in the header, and recording narration without an ElevenLabs key shows a warning');
+  assert(hdrGear, 'popup: ⚙ Settings in the header, fixed 340px width with Start always in view, and a warning when narrating without an ElevenLabs key');
   await wk.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
   await wk.waitForFunction(() => !document.getElementById('lv-warn').hidden);
   const lw = await wk.evaluate(() => ({ text: document.getElementById('lv-warn').textContent, go: document.getElementById('lv-go').disabled, voice: document.getElementById('lv-voice').disabled, top: !!document.getElementById('top-settings'), side: !!document.querySelector('.setlink') }));
@@ -111,6 +118,8 @@ try {
     await wk.goto(`chrome-extension://${extId}/review.html#settings`);
     await wk.waitForSelector('.setgrid fieldset');
     const lay = await wk.evaluate(() => {
+      // Real voice lists have long descriptions: they must not widen the Voice-over box.
+      document.getElementById('voice-pick').add(new Option('Alice - Clear, Engaging Educator · female, middle_aged, british, professional, informative_educational'));
       const bad = [];
       for (const fs of document.querySelectorAll('.setgrid fieldset')) {
         const f = fs.getBoundingClientRect();
@@ -570,18 +579,33 @@ try {
   await st.waitForFunction(() => /Saved/.test(document.getElementById('key-result').textContent));
   const savedKey = await st.evaluate(() => chrome.storage.local.get('elKey').then((r) => r.elKey));
   assert(savedKey === 'sk_global_test', 'the Settings page saves the ElevenLabs key once');
-  // Test key: stub ElevenLabs (missing permission, then OK)
+  // Test key: stub ElevenLabs (missing permission, a key ID instead of a key, then a working key)
   await st.evaluate(() => {
-    let n = 0;
-    window.fetch = async () => (n++ === 0
-      ? new Response('{"detail":{"status":"missing_permissions","message":"missing the permission speech_to_text"}}', { status: 401 })
-      : new Response('{"detail":"invalid audio"}', { status: 400 }));
+    window.__mode = 'perm';
+    window.fetch = async (url) => {
+      url = String(url);
+      if (url.endsWith('/v1/voices')) return new Response('{"voices":[]}', { status: 200 });
+      if (window.__mode === 'perm') return new Response('{"detail":{"status":"missing_permissions","message":"missing the permission speech_to_text"}}', { status: 401 });
+      if (window.__mode === 'keyid') return new Response('{"detail":{"type":"authentication_error","code":"invalid_api_key","message":"API key ID used as API key - only valid API keys can be used."}}', { status: 400 });
+      return new Response('{"detail":"invalid audio"}', { status: 400 });
+    };
   });
-  await st.click('#key-test');
-  await st.waitForFunction(() => /not allowed to use Speech to Text/.test(document.getElementById('key-result').textContent));
-  await st.click('#key-test');
-  await st.waitForFunction(() => /✓ The key works/.test(document.getElementById('key-result').textContent));
-  assert(true, 'Test key explains a missing Speech-to-Text permission and confirms a working key');
+  const keyResult = async (mode) => {
+    await st.evaluate((m) => { window.__mode = m; document.getElementById('key-result').textContent = ''; }, mode);
+    await st.click('#key-test');
+    await st.waitForFunction(() => { const t = document.getElementById('key-result').textContent; return t && t !== 'Testing…'; });
+    return st.evaluate(() => document.getElementById('key-result').textContent);
+  };
+  const kr1 = await keyResult('perm'), kr2 = await keyResult('keyid'), kr3 = await keyResult('ok');
+  assert(/allowed to use Speech to Text/.test(kr1) && /isn't a valid ElevenLabs API key.*sk_/.test(kr2) && /✓ The key works: Speech to Text ✓ · Voices ✓/.test(kr3),
+    'Test key explains a missing permission, rejects a key ID (400 invalid_api_key, no raw JSON), and confirms a working key: ' + JSON.stringify([kr1, kr2, kr3]));
+  // Models are dropdowns that show the default by name; a key ID is flagged as you type.
+  const models = await st.evaluate(() => ['elModel', 'elTtsModel', 'anModel'].map((k) => document.querySelector(`[data-pref=${k}]`).selectedOptions[0].textContent));
+  await st.fill('[data-pref=elKey]', 'a1b2c3d4e5f6');
+  const idWarn = await st.evaluate(() => !document.getElementById('el-missing').hidden && /start with sk_/.test(document.getElementById('el-missing').textContent));
+  await st.fill('[data-pref=elKey]', 'sk_global_test');
+  assert(models[0].includes('Scribe v2') && models[1].includes('Multilingual v2') && models[2].includes('Opus 5.5') && models.every((m) => /default/.test(m)) && idWarn,
+    'Settings shows each model by name (defaults marked) and flags a pasted key ID: ' + models.join(' | '));
   await st.screenshot({ path: path.join(OUT, 'settings.png') });
   for (const sidN of [narSession, sessionId]) {
     await st.goto(`chrome-extension://${extId}/review.html#${sidN}`);

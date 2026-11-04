@@ -132,7 +132,7 @@ test('speak and voiceSteps voice each narrated step with context', async () => {
   assert.equal(two.body.next_text, 'Three.');
   assert.equal(nextAssetId({ a1: 1, a7: 1 }), 'a8');
   const denied = fakeFetch(async () => ({ status: 401, json: { detail: { status: 'missing_permissions', message: 'missing text_to_speech' } } }));
-  await assert.rejects(speak({ key: 'el', voiceId: 'v', text: 'x', fetchFn: denied }), /not allowed to use Text to Speech/);
+  await assert.rejects(speak({ key: 'el', voiceId: 'v', text: 'x', fetchFn: denied }), /allowed to use Text to Speech/);
 });
 
 function run(args, env) {

@@ -3,47 +3,67 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body { font: 13px/1.4 system-ui, sans-serif; margin: 0; width: 280px; color: #111827; }
-    header { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 8px; }
+    :root { --b: #e5e7eb; --m: #6b7280; --p: #4f46e5; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    /* Fixed width: long microphone names are cut with an ellipsis instead of widening the popup. */
+    body { font: 13px/1.4 system-ui, -apple-system, sans-serif; width: 340px; color: #111827; background: #fff; overflow-x: hidden; }
+    header { position: sticky; top: 0; z-index: 2; background: #fff; padding: 10px 12px 10px 14px; border-bottom: 1px solid var(--b); display: flex; align-items: center; gap: 8px; }
     header b { font-size: 14px; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; flex: none; }
     .rec .dot { background: #dc2626; animation: p 1.2s infinite; }
     .paused .dot { background: #d97706; }
     @keyframes p { 50% { opacity: .3; } }
-    main { padding: 12px 14px; display: grid; gap: 8px; }
+    .hdrbtn { margin-left: auto; width: 30px; height: 30px; padding: 0; border: 0; background: transparent; border-radius: 8px; font-size: 16px; line-height: 30px; color: #4b5563; }
+    .hdrbtn:hover { background: #f3f4f6; filter: none; }
+    main { padding: 12px 14px 0; display: grid; gap: 10px; }
     button { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
-    button.primary { background: #4f46e5; color: #fff; border-color: #4f46e5; font-weight: 600; }
+    button.primary { background: var(--p); color: #fff; border-color: var(--p); font-weight: 600; }
     button.danger { background: #dc2626; color: #fff; border-color: #dc2626; font-weight: 600; }
     button:hover { filter: brightness(.96); }
-    .muted { color: #6b7280; font-size: 12px; }
+    button:disabled { opacity: .5; cursor: default; }
+    button.small { padding: 5px 9px; font-size: 12px; }
+    .muted { color: var(--m); font-size: 12px; }
     .err { color: #b91c1c; font-size: 12px; }
-    .size { display: grid; gap: 6px; padding: 10px; border: 1px solid #e5e7eb; border-radius: 10px; }
-    .size label { font-weight: 600; font-size: 12px; color: #374151; }
-    .size label.chk { font-weight: 400; display: flex; gap: 6px; align-items: center; }
-    .size select, .size input[type=number] { font: inherit; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 8px; }
-    .size input[type=number] { width: 84px; }
-    .row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
-    button.small { padding: 4px 8px; font-size: 12px; }
-    .warn { color: #b45309; font-size: 12px; }
-    .warn a { color: inherit; font-weight: 600; }
-    .hdrbtn { margin-left: auto; padding: 3px 8px; font-size: 15px; line-height: 1; }
-    label.mic { display: flex; gap: 6px; align-items: center; font-size: 13px; }
-    .meter { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; }
+    .card { border: 1px solid var(--b); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+    .card h3 { margin: 0; font-size: 12px; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: .04em; }
+    .field { display: grid; gap: 3px; min-width: 0; }
+    .field > span { font-size: 12px; color: #4b5563; }
+    select, input[type=number] { font: inherit; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; min-width: 0; }
+    select { width: 100%; text-overflow: ellipsis; }
+    input[type=number] { width: 84px; }
+    .row { display: flex; gap: 6px; align-items: center; }
+    .row.split { justify-content: space-between; }
+    .row > select { flex: 1; }
+    label.chk { display: flex; gap: 7px; align-items: center; font-size: 12.5px; cursor: pointer; }
+    label.toggle { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 13px; cursor: pointer; }
+    .narr.off { padding-bottom: 10px; }
+    .meter { flex: 1; height: 6px; border-radius: 3px; background: var(--b); overflow: hidden; }
     .meter i { display: block; height: 100%; width: 0; background: #22c55e; transition: width .06s; }
-    .heard { font-size: 12px; color: #374151; min-height: 16px; }
+    .heard { font-size: 12px; color: #374151; }
+    .heard:empty, #micstatus:empty, #warn:empty, #err:empty, #cursize:empty { display: none; }
     .heard.bad { color: #b45309; }
-    .ok { color: #047857; }
+    .ok { color: #047857; font-size: 12px; }
+    .warn { color: #92400e; font-size: 12px; }
+    .callout { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 7px 9px; color: #92400e; font-size: 12px; line-height: 1.35; }
+    .callout a, .warn a { color: inherit; font-weight: 600; white-space: nowrap; }
+    footer { position: sticky; bottom: 0; background: #fff; padding: 10px 14px 12px; display: grid; gap: 8px; border-top: 1px solid transparent; }
+    footer.lifted { border-top-color: var(--b); }
+    footer .start { width: 100%; padding: 10px; font-size: 14px; }
+    footer .links { display: flex; gap: 6px; }
+    footer .links button { flex: 1; font-size: 12.5px; padding: 6px 8px; }
+    .hint { font-size: 11.5px; color: var(--m); text-align: center; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
-  <header id="hdr"><span class="dot"></span><b>Demo Recorder</b><span id="status" class="muted"></span><button id="settings" class="hdrbtn" title="Settings: API keys, voice, languages">⚙</button></header>
+  <header id="hdr"><span class="dot"></span><b>Demo Recorder</b><span id="status" class="muted"></span><button id="settings" class="hdrbtn" title="Settings: API keys, voice, languages" aria-label="Settings">⚙</button></header>
   <main>
-    <div id="idle">
-      <div style="display:grid;gap:8px">
-        <div class="size">
-          <label for="size">Recording size</label>
-          <select id="size">
+    <div id="idle" style="display:grid;gap:10px">
+      <section class="card">
+        <h3>Recording size</h3>
+        <div class="row">
+          <select id="size" aria-label="Recording size">
             <option value="current">Current window</option>
             <option value="1280x720">1280 × 720</option>
             <option value="1366x768">1366 × 768</option>
@@ -52,29 +72,27 @@
             <option value="1920x1080">1920 × 1080</option>
             <option value="custom">Custom…</option>
           </select>
-          <div id="custom" class="row" hidden>
-            <input id="cw" type="number" min="320" max="7680" placeholder="width"> ×
-            <input id="ch" type="number" min="240" max="4320" placeholder="height">
-          </div>
-          <div class="row"><span id="cursize" class="muted"></span><button id="resize" class="small">Resize now</button></div>
-          <label class="chk"><input type="checkbox" id="restore" checked> Restore window size after recording</label>
+          <button id="resize" class="small" title="Resize this window now, to check the size">Resize now</button>
         </div>
-        <label class="mic"><input type="checkbox" id="narration"> 🎙 Record narration (microphone)</label>
-        <div id="narrbox" class="size" hidden>
-          <label for="lang">Language you'll speak</label>
-          <select id="lang"></select>
-          <label for="mic">Microphone</label>
-          <select id="mic"></select>
+        <div id="custom" class="row" hidden>
+          <input id="cw" type="number" min="320" max="7680" placeholder="width"> ×
+          <input id="ch" type="number" min="240" max="4320" placeholder="height">
+        </div>
+        <div class="row split"><label class="chk"><input type="checkbox" id="restore" checked> Restore window size afterwards</label><span id="cursize" class="muted"></span></div>
+      </section>
+      <section class="card narr" id="narrcard">
+        <label class="toggle"><input type="checkbox" id="narration"> 🎙 Record narration</label>
+        <div id="narrbox" style="display:grid;gap:8px" hidden>
+          <label class="field"><span>Language you'll speak</span><select id="lang"></select></label>
+          <label class="field"><span>Microphone</span><select id="mic"></select></label>
           <button id="allowmic" class="small" hidden>Allow microphone…</button>
-          <div class="row"><button id="testmic" class="small">🎙 Test mic</button><span id="micstatus" class="muted"></span></div>
-          <div class="meter"><i id="level"></i></div>
+          <div class="row"><button id="testmic" class="small">Test mic</button><div class="meter"><i id="level"></i></div></div>
+          <div id="micstatus" class="muted"></div>
           <div id="heard" class="heard"></div>
           <label class="chk"><input type="checkbox" id="live" checked> Live transcript while recording</label>
-          <div id="nokey" class="warn" hidden>⚠ No ElevenLabs API key: only Chrome's live transcript will turn your voice into text, and you won't be able to transcribe the recording afterwards. <a href="#" id="nokey-set">Add the key in ⚙ Settings</a>.</div>
+          <div id="nokey" class="callout" hidden>⚠ No ElevenLabs key: you'll only get Chrome's live transcript, and you can't transcribe the recording afterwards. <a href="#" id="nokey-set">Add key in ⚙ Settings</a></div>
         </div>
-        <button id="start" class="primary">● Start recording this tab</button>
-        <div class="muted">Clicks, typing, keyboard shortcuts, scrolling and page changes are captured. Password values are masked.</div>
-      </div>
+      </section>
     </div>
     <div id="active" hidden>
       <div style="display:grid;gap:8px">
@@ -83,10 +101,13 @@
         <button id="stop" class="danger">■ Stop &amp; review</button>
       </div>
     </div>
-    <div class="row"><button id="library" style="flex:1">Open recordings</button><button id="importdemo" title="Load a .demo.html someone shared with you">⬆ Import demo…</button></div>
     <div id="warn" class="warn"></div>
     <div id="err" class="err"></div>
   </main>
+  <footer id="foot">
+    <button id="start" class="primary start" title="Clicks, typing, keyboard shortcuts, scrolling and page changes are captured. Password values are masked.">● Start recording this tab</button>
+    <div class="links"><button id="library">Open recordings</button><button id="importdemo" title="Load a .demo.html someone shared with you">⬆ Import demo…</button></div>
+  </footer>
   <script src="popup.js" type="module"></script>
 </body>
 </html>
