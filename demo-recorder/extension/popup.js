@@ -8,6 +8,7 @@ async function refresh() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   $('idle').hidden = !!state;
   $('active').hidden = !state;
+  $('start').hidden = !!state;
   $('hdr').className = state ? (state.paused ? 'paused' : 'rec') : '';
   $('status').textContent = state ? (state.paused ? 'paused' : 'recording') : '';
   if (state) {
@@ -85,12 +86,22 @@ async function renderMics(selected) {
   for (const d of devices) {
     const o = document.createElement('option');
     o.value = d.deviceId === 'default' ? '' : d.deviceId;
-    o.textContent = d.label || (d.deviceId === 'default' ? 'Default microphone' : 'Microphone');
+    o.textContent = niceMicName(d.label, d.deviceId === 'default');
+    o.title = d.label || '';
     $('mic').appendChild(o);
   }
   if (!devices.length) { $('micstatus').textContent = 'No microphone found.'; $('testmic').disabled = true; return; }
   $('mic').value = [...$('mic').options].some((o) => o.value === keep) ? keep : $('mic').options[0].value;
   if ($('micstatus').textContent === 'Allow the microphone first.') $('micstatus').textContent = '';
+}
+
+// "Default - TONOR TD520S Dynamic Mic (31b2:0011)" → "TONOR TD520S Dynamic Mic (default)"
+function niceMicName(label, isDefault) {
+  if (!label) return isDefault ? 'Default microphone' : 'Microphone';
+  let n = label.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '');
+  const def = /^default\s*-\s*/i.test(n);
+  n = n.replace(/^(default|communications)\s*-\s*/i, '');
+  return def || isDefault ? n + ' (default)' : n;
 }
 
 let test = null; // { stream, stopLevel, recognizer, timer }
@@ -101,8 +112,9 @@ function stopTest() {
   clearTimeout(test.timer);
   test.stream.getTracks().forEach((t) => t.stop());
   test = null;
-  $('testmic').textContent = '🎙 Test mic';
+  $('testmic').textContent = 'Test mic';
   $('level').style.width = '0';
+  $('heard').textContent = '';
 }
 
 async function startTest() {
@@ -138,6 +150,7 @@ async function startTest() {
 
 function showNarrationBox() {
   $('narrbox').hidden = !$('narration').checked;
+  $('narrcard').classList.toggle('off', !$('narration').checked);
   if ($('narrbox').hidden) stopTest();
   // Without an ElevenLabs key there is no transcription after recording: say so before recording.
   chrome.storage.local.get('elKey').then(({ elKey }) => { $('nokey').hidden = !!elKey; });
@@ -190,7 +203,8 @@ $('resize').onclick = guard(async () => {
   await showCurrentSize();
   return r;
 });
-$('size').onchange = () => { $('custom').hidden = $('size').value !== 'custom'; savePrefs(); };
+const sizeUi = () => { $('custom').hidden = $('size').value !== 'custom'; $('resize').hidden = $('size').value === 'current'; };
+$('size').onchange = () => { sizeUi(); savePrefs(); };
 $('cw').onchange = $('ch').onchange = $('restore').onchange = $('live').onchange = savePrefs;
 $('narration').onchange = () => { showNarrationBox(); savePrefs(); };
 $('mic').onchange = () => { savePrefs(); if (test) startTest().catch((e) => { $('micstatus').textContent = e.message; }); };
@@ -207,13 +221,18 @@ window.addEventListener('pagehide', stopTest);
   $('ch').value = p.custom.h;
   $('restore').checked = p.restore;
   $('narration').checked = p.narration;
-  $('custom').hidden = p.size !== 'custom';
+  sizeUi();
   fillLanguageSelect($('lang'), p.lang);
   $('live').checked = p.live;
   await renderMics(p.micId);
   showNarrationBox();
   showCurrentSize();
 })();
+
+// A line above the sticky footer only when content scrolls under it.
+const lift = () => $('foot').classList.toggle('lifted', document.documentElement.scrollHeight > window.innerHeight + 2 && window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 2);
+window.addEventListener('scroll', lift);
+new ResizeObserver(lift).observe(document.body);
 
 refresh();
 setInterval(refresh, 1000);

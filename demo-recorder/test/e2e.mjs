@@ -98,9 +98,16 @@ try {
   const narrWas = await wk.isChecked('#narration');
   if (!narrWas) await wk.check('#narration');
   await wk.waitForSelector('#nokey:not([hidden])');
-  const hdrGear = await wk.evaluate(() => !!document.querySelector('header #settings'));
+  const hdrGear = await wk.evaluate(() => {
+    // Long microphone names must not widen the popup; the Start button stays in view (sticky footer).
+    const o = document.createElement('option');
+    o.textContent = 'Default - A Very Long Microphone Name With Many Words In It (31b2:0011)';
+    document.getElementById('mic').appendChild(o);
+    const start = document.getElementById('start').getBoundingClientRect();
+    return !!document.querySelector('header #settings') && document.body.scrollWidth <= 340 && start.bottom <= window.innerHeight;
+  });
   if (!narrWas) await wk.uncheck('#narration');
-  assert(hdrGear, 'popup: ⚙ Settings sits in the header, and recording narration without an ElevenLabs key shows a warning');
+  assert(hdrGear, 'popup: ⚙ Settings in the header, fixed 340px width with Start always in view, and a warning when narrating without an ElevenLabs key');
   await wk.goto(`chrome-extension://${extId}/review.html#${sessionId}`);
   await wk.waitForFunction(() => !document.getElementById('lv-warn').hidden);
   const lw = await wk.evaluate(() => ({ text: document.getElementById('lv-warn').textContent, go: document.getElementById('lv-go').disabled, voice: document.getElementById('lv-voice').disabled, top: !!document.getElementById('top-settings'), side: !!document.querySelector('.setlink') }));
